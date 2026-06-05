@@ -1,0 +1,5 @@
+# Rebuilt via `npm install` before packing
+server/node_modules/
+
+# Built bundle is a release artifact, not source
+*.mcpb

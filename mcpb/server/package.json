@@ -1,0 +1,11 @@
+{
+  "name": "wigai-mcpb-server",
+  "version": "0.2.0",
+  "description": "stdio<->HTTP proxy that bridges Claude Desktop to the WigAI MCP server running inside Bitwig Studio",
+  "private": true,
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "mcp-remote": "^0.1.38"
+  }
+}

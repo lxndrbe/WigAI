@@ -1,0 +1,69 @@
+{
+  "manifest_version": "0.3",
+  "name": "wigai",
+  "display_name": "WigAI — Bitwig Studio Control",
+  "version": "0.2.0",
+  "description": "Control Bitwig Studio from Claude — transport, devices, tracks, clips, scenes, and one-click Bitwig device insertion.",
+  "long_description": "WigAI turns Bitwig Studio into an MCP-controllable instrument. The WigAI Bitwig extension runs an embedded MCP server inside Bitwig (default `http://localhost:61169/mcp`); this Desktop Extension bundles a stdio↔HTTP proxy so Claude Desktop can connect to it with a single click — no JSON configuration required.\n\n**Prerequisite:** Bitwig Studio must be running with the WigAI `.bwextension` installed and activated. See the WigAI repository for the extension download and setup.\n\n**Capabilities:** transport control, device parameter read/write, track & scene listing, clip & scene launching, and inserting Bitwig-native devices by UUID.",
+  "author": {
+    "name": "lxndrbe",
+    "url": "https://github.com/lxndrbe"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lxndrbe/WigAI"
+  },
+  "homepage": "https://github.com/lxndrbe/WigAI",
+  "documentation": "https://github.com/lxndrbe/WigAI/blob/main/README.md",
+  "support": "https://github.com/lxndrbe/WigAI/issues",
+  "license": "MIT",
+  "keywords": ["bitwig", "music", "daw", "mcp", "audio", "midi", "production"],
+  "server": {
+    "type": "node",
+    "entry_point": "server/node_modules/mcp-remote/dist/proxy.js",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/server/node_modules/mcp-remote/dist/proxy.js",
+        "${user_config.server_url}",
+        "--allow-http"
+      ]
+    }
+  },
+  "tools_generated": true,
+  "tools": [
+    { "name": "status", "description": "Get a full snapshot of transport, project, selected track and device" },
+    { "name": "transport_start", "description": "Start transport playback" },
+    { "name": "transport_stop", "description": "Stop transport playback" },
+    { "name": "get_selected_device_parameters", "description": "Read parameters of the selected device" },
+    { "name": "set_selected_device_parameter", "description": "Set one parameter of the selected device" },
+    { "name": "set_selected_device_parameters", "description": "Set multiple parameters of the selected device" },
+    { "name": "get_device_details", "description": "Get device details and remote controls" },
+    { "name": "list_tracks", "description": "List all tracks, optionally filtered by type" },
+    { "name": "get_track_details", "description": "Get detailed info for a track incl. sends and clips" },
+    { "name": "list_devices_on_track", "description": "List devices on a track" },
+    { "name": "launch_clip", "description": "Launch a clip by track name and clip index" },
+    { "name": "session_launchSceneByIndex", "description": "Launch a scene by index" },
+    { "name": "session_launchSceneByName", "description": "Launch a scene by name" },
+    { "name": "list_scenes", "description": "List all scenes" },
+    { "name": "get_clips_in_scene", "description": "Get clip slots in a scene" },
+    { "name": "list_bitwig_devices", "description": "List known Bitwig devices with their UUIDs" },
+    { "name": "insert_bitwig_device", "description": "Insert a Bitwig-native device into a track by UUID" }
+  ],
+  "user_config": {
+    "server_url": {
+      "type": "string",
+      "title": "WigAI Server URL",
+      "description": "URL of the MCP server embedded in the WigAI Bitwig extension. Change only if you customized the port in Bitwig's WigAI preferences.",
+      "default": "http://localhost:61169/mcp",
+      "required": true
+    }
+  },
+  "compatibility": {
+    "claude_desktop": ">=0.10.0",
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "node": ">=18.0.0"
+    }
+  }
+}
