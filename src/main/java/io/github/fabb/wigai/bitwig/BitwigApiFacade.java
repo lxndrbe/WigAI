@@ -89,8 +89,9 @@ public class BitwigApiFacade {
         MasterTrack masterTrack = host.createMasterTrack(0);
         this.projectParameterBank = masterTrack.createCursorRemoteControlsPage(Constants.PROJECT_PARAMETER_COUNT);
 
-        // Initialize track bank for clip launching (support up to 128 tracks and 128 scenes for full functionality)
+        // Initialize track bank — ALL_TRACKS_INCLUDING_HIDDEN ensures hidden/nested tracks are accessible (API 25)
         this.trackBank = host.createTrackBank(Constants.MAX_TRACKS, 0, Constants.MAX_SCENES);
+        this.trackBank.setContentFilter(TrackBankContentFilter.ALL_CHANNELS);
         this.sceneBankFacade = new SceneBankFacade(host, logger, Constants.MAX_SCENES); // Support up to 128 scenes for full functionality
 
         // Initialize device banks for each track to enable device enumeration
@@ -334,6 +335,34 @@ public class BitwigApiFacade {
      */
     public ControllerHost getHost() {
         return host;
+    }
+
+    /**
+     * Inserts a Bitwig-native device into a track's device chain.
+     *
+     * @param trackIndex 0-based track index
+     * @param uuidStr    UUID string of the Bitwig-native device
+     * @param position   "start" inserts before all existing devices, "end" appends after all (default)
+     * @throws BitwigApiException if the track index is out of range or the UUID is malformed
+     */
+    public void insertBitwigDevice(int trackIndex, String uuidStr, String position) throws BitwigApiException {
+        if (trackIndex < 0 || trackIndex >= trackBank.getSizeOfBank()) {
+            throw new BitwigApiException(ErrorCode.TRACK_NOT_FOUND, "insert_bitwig_device",
+                    "Track index " + trackIndex + " is out of range (0-" + (trackBank.getSizeOfBank() - 1) + ")");
+        }
+        java.util.UUID uuid;
+        try {
+            uuid = java.util.UUID.fromString(uuidStr);
+        } catch (IllegalArgumentException e) {
+            throw new BitwigApiException(ErrorCode.INVALID_PARAMETER, "insert_bitwig_device",
+                    "Invalid UUID format: " + uuidStr);
+        }
+        Track track = trackBank.getItemAt(trackIndex);
+        InsertionPoint insertionPoint = "start".equals(position)
+                ? track.startOfDeviceChainInsertionPoint()
+                : track.endOfDeviceChainInsertionPoint();
+        insertionPoint.insertBitwigDevice(uuid);
+        logger.info("BitwigApiFacade: Inserted device " + uuidStr + " at " + position + " of track " + trackIndex);
     }
 
     /**

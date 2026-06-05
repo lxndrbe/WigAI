@@ -2,6 +2,7 @@ package io.github.fabb.wigai.mcp;
 
 import io.github.fabb.wigai.WigAIExtensionDefinition;
 import io.github.fabb.wigai.bitwig.BitwigApiFacade;
+import io.github.fabb.wigai.bitwig.DeviceRegistry;
 import io.github.fabb.wigai.common.Logger;
 import io.github.fabb.wigai.common.logging.StructuredLogger;
 import io.github.fabb.wigai.config.ConfigManager;
@@ -26,6 +27,8 @@ import io.github.fabb.wigai.mcp.tool.GetClipsInSceneTool;
 import io.modelcontextprotocol.spec.McpSchema;
 import com.bitwig.extension.controller.api.ControllerHost;
 import io.github.fabb.wigai.mcp.tool.SceneByNameTool;
+import io.github.fabb.wigai.mcp.tool.ListBitwigDevicesTool;
+import io.github.fabb.wigai.mcp.tool.InsertBitwigDeviceTool;
 
 /**
  * Manages the MCP server for the WigAI extension.
@@ -49,6 +52,7 @@ public class McpServerManager {
 
     // Reusable controllers - initialized once during first start
     private BitwigApiFacade bitwigApiFacade;
+    private DeviceRegistry deviceRegistry;
     private TransportController transportController;
     private DeviceController deviceController;
     private ClipSceneController clipSceneController;
@@ -124,6 +128,7 @@ public class McpServerManager {
             transportController = new TransportController(bitwigApiFacade, logger);
             deviceController = new DeviceController(bitwigApiFacade, logger);
             clipSceneController = new ClipSceneController(bitwigApiFacade, logger);
+            deviceRegistry = new DeviceRegistry(logger);
         } else {
             logger.info("McpServerManager: Reusing existing Bitwig API controllers");
         }
@@ -152,7 +157,9 @@ public class McpServerManager {
                 ListDevicesOnTrackTool.specification(bitwigApiFacade, structuredLogger),
                 GetTrackDetailsTool.specification(bitwigApiFacade, structuredLogger),
                 ListScenesTool.specification(bitwigApiFacade, structuredLogger),
-                GetClipsInSceneTool.getClipsInSceneSpecification(clipSceneController, structuredLogger)
+                GetClipsInSceneTool.getClipsInSceneSpecification(clipSceneController, structuredLogger),
+                ListBitwigDevicesTool.specification(deviceRegistry, structuredLogger),
+                InsertBitwigDeviceTool.specification(bitwigApiFacade, deviceRegistry, structuredLogger)
             )
             .build();
 
