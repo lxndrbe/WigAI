@@ -100,6 +100,20 @@ Other clients can point at `http://localhost:61169/mcp` directly using an HTTP/S
 | `list_bitwig_devices` | Known Bitwig devices with UUIDs |
 | `insert_bitwig_device` | Insert a Bitwig-native device into a track by UUID |
 
+## Compatible AI Agents
+
+WigAI works with any AI agent that supports the Model Context Protocol — not just Claude. As long as the agent can connect to an MCP server over HTTP or stdio, it can control Bitwig through WigAI.
+
+| Agent | How to connect |
+|-------|---------------|
+| **Claude Desktop** | Install `WigAI.mcpb` (one-click, see above) |
+| **Claude Code** | `claude mcp add --transport http WigAI http://localhost:61169/mcp` |
+| **Cursor** | Add to `.cursor/mcp.json`: `{ "mcpServers": { "WigAI": { "url": "http://localhost:61169/mcp" } } }` |
+| **VS Code Copilot** | Add to VS Code MCP settings with transport `http` and URL `http://localhost:61169/mcp` |
+| **Any other MCP client** | Point it at `http://localhost:61169/mcp` using an HTTP or Streamable HTTP transport |
+
+The WigAI server speaks the standard [MCP protocol](https://modelcontextprotocol.io) — no vendor-specific extensions. If your agent supports MCP, it works with WigAI.
+
 ## Development
 
 This project is developed using the [BMAD method](https://github.com/bmadcode/BMAD-METHOD) with AI agents.
