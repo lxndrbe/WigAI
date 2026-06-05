@@ -39,3 +39,6 @@ hs_err_pid*
 .nyx/
 
 CHANGELOG.md
+
+# Built MCPB Desktop Extension bundle (release artifact)
+*.mcpb
