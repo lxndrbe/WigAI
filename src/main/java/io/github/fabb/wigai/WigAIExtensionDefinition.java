@@ -36,12 +36,12 @@ public class WigAIExtensionDefinition extends ControllerExtensionDefinition {
 
     @Override
     public String getHardwareVendor() {
-        return "fabb";
+        return "LXNDR BE";
     }
 
     @Override
     public String getHardwareModel() {
-        return "WigAI MCP Server";
+        return "WigAI 2 MCP Server";
     }
 
     @Override
@@ -61,7 +61,7 @@ public class WigAIExtensionDefinition extends ControllerExtensionDefinition {
 
     @Override
     public String getHelpFilePath() {
-        return "https://github.com/fabb/WigAI/blob/main/README.md";
+        return "https://github.com/lxndrbe/WigAI/blob/main/README.md";
     }
 
     // This method may not be part of the current API version

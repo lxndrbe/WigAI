@@ -12,7 +12,7 @@ public class AppConstants {
     /**
      * The application name.
      */
-    public static final String APP_NAME = "WigAI";
+    public static final String APP_NAME = "WigAI 2";
 
     /**
      * The application version.
@@ -22,7 +22,7 @@ public class AppConstants {
     /**
      * The application author.
      */
-    public static final String APP_AUTHOR = "fabb";
+    public static final String APP_AUTHOR = "LXNDR BE";
 
     static {
         APP_VERSION = performVersionLoadingInternal();

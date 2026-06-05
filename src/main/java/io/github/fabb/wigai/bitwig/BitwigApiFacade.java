@@ -1779,4 +1779,456 @@ public class BitwigApiFacade {
         String selectedDeviceName = cursorDevice.name().get();
         return deviceName.equals(selectedDeviceName);
     }
+
+    /**
+     * Inserts any type of device (native, VST3, CLAP, or VST2) into a track's device chain.
+     *
+     * @param trackIndex 0-based track index
+     * @param category   Category of the device (e.g. "vst3_audio_fx")
+     * @param deviceId   Identifier string of the device
+     * @param position   "start" or "end"
+     * @throws BitwigApiException if trackIndex is invalid or parameter error occurs
+     */
+    public void insertDevice(int trackIndex, String category, String deviceId, String position) throws BitwigApiException {
+        final String operation = "insertDevice";
+        if (trackIndex < 0 || trackIndex >= trackBank.getSizeOfBank()) {
+            throw new BitwigApiException(ErrorCode.TRACK_NOT_FOUND, operation,
+                    "Track index " + trackIndex + " is out of range (0-" + (trackBank.getSizeOfBank() - 1) + ")");
+        }
+
+        Track track = trackBank.getItemAt(trackIndex);
+        if (!track.exists().get()) {
+            throw new BitwigApiException(ErrorCode.TRACK_NOT_FOUND, operation,
+                    "Track at index " + trackIndex + " does not exist");
+        }
+
+        InsertionPoint insertionPoint = "start".equals(position)
+                ? track.startOfDeviceChainInsertionPoint()
+                : track.endOfDeviceChainInsertionPoint();
+
+        try {
+            switch (category.toLowerCase()) {
+                case "bitwig_audio_fx", "bitwig_instruments" -> {
+                    java.util.UUID uuid = java.util.UUID.fromString(deviceId);
+                    insertionPoint.insertBitwigDevice(uuid);
+                }
+                case "vst3_audio_fx", "vst3_instruments" -> {
+                    insertionPoint.insertVST3Device(deviceId);
+                }
+                case "clap_audio_fx", "clap_instruments" -> {
+                    insertionPoint.insertCLAPDevice(deviceId);
+                }
+                case "vst2_audio_fx", "vst2_instruments" -> {
+                    int id = Integer.parseInt(deviceId);
+                    insertionPoint.insertVST2Device(id);
+                }
+                default -> throw new BitwigApiException(ErrorCode.INVALID_PARAMETER, operation,
+                        "Unsupported device category: " + category);
+            }
+            logger.info("BitwigApiFacade: Inserted device " + deviceId + " (" + category + ") at " + position + " of track " + trackIndex);
+        } catch (IllegalArgumentException e) {
+            throw new BitwigApiException(ErrorCode.INVALID_PARAMETER, operation,
+                    "Malformed device ID: " + deviceId + " for category: " + category + " - " + e.getMessage());
+        } catch (Exception e) {
+            throw new BitwigApiException(ErrorCode.BITWIG_API_ERROR, operation,
+                    "Failed to insert device " + deviceId + ": " + e.getMessage());
+        }
+    }
+
+    /**
+     * Creates a new track of the specified type (audio, instrument, effect).
+     *
+     * @param type The type of track to create ("audio", "instrument", "effect")
+     * @throws BitwigApiException if type is invalid or action cannot be triggered
+     */
+    public void createTrack(String type) throws BitwigApiException {
+        final String operation = "createTrack";
+        logger.info("BitwigApiFacade: Creating track of type: " + type);
+
+        String actionName;
+        switch (type.toLowerCase()) {
+            case "audio" -> actionName = "Create Audio Track";
+            case "instrument" -> actionName = "Create Instrument Track";
+            case "effect", "fx" -> actionName = "Create Effect Track";
+            case "group" -> actionName = "Create Group Track";
+            default -> throw new BitwigApiException(ErrorCode.INVALID_PARAMETER, operation,
+                    "Invalid track type: '" + type + "'. Must be 'audio', 'instrument', 'effect', or 'group'.");
+        }
+
+        try {
+            Action action = application.getAction(actionName);
+            if (action == null) {
+                // Try searching the actions
+                Action[] actions = application.getActions();
+                for (Action a : actions) {
+                    if (a.getName().equalsIgnoreCase(actionName) || a.getId().equalsIgnoreCase(actionName)) {
+                        action = a;
+                        break;
+                    }
+                }
+            }
+
+            // Fallback for group tracks if "Create Group Track" action is not found
+            if (action == null && "Create Group Track".equals(actionName)) {
+                String fallbackAction = "Group";
+                action = application.getAction(fallbackAction);
+                if (action == null) {
+                    Action[] actions = application.getActions();
+                    for (Action a : actions) {
+                        if (a.getName().equalsIgnoreCase(fallbackAction) || a.getId().equalsIgnoreCase(fallbackAction)) {
+                            action = a;
+                            break;
+                        }
+                    }
+                }
+                if (action != null) {
+                    actionName = fallbackAction;
+                }
+            }
+
+            if (action == null) {
+                throw new BitwigApiException(ErrorCode.BITWIG_API_ERROR, operation,
+                        "Action '" + actionName + "' not found in Bitwig application.");
+            }
+
+            action.invoke();
+            logger.info("BitwigApiFacade: Triggered action: " + actionName);
+        } catch (Exception e) {
+            throw new BitwigApiException(ErrorCode.BITWIG_API_ERROR, operation,
+                    "Failed to create track: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Renames the track at the given index.
+     *
+     * @param trackIndex 0-based index of the track to rename
+     * @param newName    The new name for the track
+     * @throws BitwigApiException if track index is out of bounds or track doesn't exist
+     */
+    public void renameTrack(int trackIndex, String newName) throws BitwigApiException {
+        final String operation = "renameTrack";
+        logger.info("BitwigApiFacade: Renaming track " + trackIndex + " to: " + newName);
+
+        if (trackIndex < 0 || trackIndex >= trackBank.getSizeOfBank()) {
+            throw new BitwigApiException(ErrorCode.INVALID_RANGE, operation,
+                    "Track index " + trackIndex + " is out of range (0-" + (trackBank.getSizeOfBank() - 1) + ")");
+        }
+
+        try {
+            Track track = trackBank.getItemAt(trackIndex);
+            if (!track.exists().get()) {
+                throw new BitwigApiException(ErrorCode.TRACK_NOT_FOUND, operation,
+                        "Track at index " + trackIndex + " does not exist");
+            }
+            track.name().set(newName);
+            logger.info("BitwigApiFacade: Renamed track " + trackIndex + " to: " + newName);
+        } catch (Exception e) {
+            throw new BitwigApiException(ErrorCode.BITWIG_API_ERROR, operation,
+                    "Failed to rename track: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Deletes the currently selected device.
+     *
+     * @throws BitwigApiException if no device is selected
+     */
+    public void deleteSelectedDevice() throws BitwigApiException {
+        final String operation = "deleteSelectedDevice";
+        logger.info("BitwigApiFacade: Deleting selected device");
+
+        if (!cursorDevice.exists().get()) {
+            throw new BitwigApiException(ErrorCode.DEVICE_NOT_SELECTED, operation,
+                    "No device is currently selected to delete");
+        }
+
+        try {
+            cursorDevice.deleteObject();
+            logger.info("BitwigApiFacade: Deleted selected device");
+        } catch (Exception e) {
+            throw new BitwigApiException(ErrorCode.BITWIG_API_ERROR, operation,
+                    "Failed to delete selected device: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Selects the next device in the chain.
+     */
+    public void selectNextDevice() {
+        logger.info("BitwigApiFacade: Selecting next device");
+        cursorDevice.selectNext();
+    }
+
+    /**
+     * Selects the previous device in the chain.
+     */
+    public void selectPreviousDevice() {
+        logger.info("BitwigApiFacade: Selecting previous device");
+        cursorDevice.selectPrevious();
+    }
+
+    /**
+     * Selects the first device in the chain.
+     */
+    /**
+     * Selects the first device in the chain.
+     */
+    public void selectFirstDevice() {
+        logger.info("BitwigApiFacade: Selecting first device");
+        cursorDevice.selectFirst();
+    }
+
+    /**
+     * Selects/focuses the track at the given index.
+     *
+     * @param trackIndex 0-based index of the track to select
+     * @throws BitwigApiException if trackIndex is out of bounds or track doesn't exist
+     */
+    public void selectTrack(int trackIndex) throws BitwigApiException {
+        final String operation = "selectTrack";
+        logger.info("BitwigApiFacade: Selecting track " + trackIndex);
+
+        if (trackIndex < 0 || trackIndex >= trackBank.getSizeOfBank()) {
+            throw new BitwigApiException(ErrorCode.INVALID_RANGE, operation,
+                    "Track index " + trackIndex + " is out of range (0-" + (trackBank.getSizeOfBank() - 1) + ")");
+        }
+
+        try {
+            Track track = trackBank.getItemAt(trackIndex);
+            if (!track.exists().get()) {
+                throw new BitwigApiException(ErrorCode.TRACK_NOT_FOUND, operation,
+                        "Track at index " + trackIndex + " does not exist");
+            }
+            cursorTrack.selectChannel(track);
+            logger.info("BitwigApiFacade: Selected track " + trackIndex);
+        } catch (Exception e) {
+            throw new BitwigApiException(ErrorCode.BITWIG_API_ERROR, operation,
+                    "Failed to select track: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Sets the mute status of a track.
+     *
+     * @param trackIndex 0-based index of the track
+     * @param mute       true to mute, false to unmute
+     * @throws BitwigApiException if track index is out of bounds or track doesn't exist
+     */
+    public void setTrackMute(int trackIndex, boolean mute) throws BitwigApiException {
+        final String operation = "setTrackMute";
+        if (trackIndex < 0 || trackIndex >= trackBank.getSizeOfBank()) {
+            throw new BitwigApiException(ErrorCode.INVALID_RANGE, operation,
+                    "Track index " + trackIndex + " is out of range (0-" + (trackBank.getSizeOfBank() - 1) + ")");
+        }
+        try {
+            Track track = trackBank.getItemAt(trackIndex);
+            if (!track.exists().get()) {
+                throw new BitwigApiException(ErrorCode.TRACK_NOT_FOUND, operation,
+                        "Track at index " + trackIndex + " does not exist");
+            }
+            track.mute().set(mute);
+            logger.info("BitwigApiFacade: Set track " + trackIndex + " mute to: " + mute);
+        } catch (Exception e) {
+            throw new BitwigApiException(ErrorCode.BITWIG_API_ERROR, operation,
+                    "Failed to set track mute: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Sets the solo status of a track.
+     *
+     * @param trackIndex 0-based index of the track
+     * @param solo       true to solo, false to unsolo
+     * @throws BitwigApiException if track index is out of bounds or track doesn't exist
+     */
+    public void setTrackSolo(int trackIndex, boolean solo) throws BitwigApiException {
+        final String operation = "setTrackSolo";
+        if (trackIndex < 0 || trackIndex >= trackBank.getSizeOfBank()) {
+            throw new BitwigApiException(ErrorCode.INVALID_RANGE, operation,
+                    "Track index " + trackIndex + " is out of range (0-" + (trackBank.getSizeOfBank() - 1) + ")");
+        }
+        try {
+            Track track = trackBank.getItemAt(trackIndex);
+            if (!track.exists().get()) {
+                throw new BitwigApiException(ErrorCode.TRACK_NOT_FOUND, operation,
+                        "Track at index " + trackIndex + " does not exist");
+            }
+            track.solo().set(solo);
+            logger.info("BitwigApiFacade: Set track " + trackIndex + " solo to: " + solo);
+        } catch (Exception e) {
+            throw new BitwigApiException(ErrorCode.BITWIG_API_ERROR, operation,
+                    "Failed to set track solo: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Sets the record arm status of a track.
+     *
+     * @param trackIndex 0-based index of the track
+     * @param arm        true to arm, false to disarm
+     * @throws BitwigApiException if track index is out of bounds or track doesn't exist
+     */
+    public void setTrackArm(int trackIndex, boolean arm) throws BitwigApiException {
+        final String operation = "setTrackArm";
+        if (trackIndex < 0 || trackIndex >= trackBank.getSizeOfBank()) {
+            throw new BitwigApiException(ErrorCode.INVALID_RANGE, operation,
+                    "Track index " + trackIndex + " is out of range (0-" + (trackBank.getSizeOfBank() - 1) + ")");
+        }
+        try {
+            Track track = trackBank.getItemAt(trackIndex);
+            if (!track.exists().get()) {
+                throw new BitwigApiException(ErrorCode.TRACK_NOT_FOUND, operation,
+                        "Track at index " + trackIndex + " does not exist");
+            }
+            track.arm().set(arm);
+            logger.info("BitwigApiFacade: Set track " + trackIndex + " arm to: " + arm);
+        } catch (Exception e) {
+            throw new BitwigApiException(ErrorCode.BITWIG_API_ERROR, operation,
+                    "Failed to set track arm: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Sets the volume of a track (normalized value 0.0 to 1.0).
+     *
+     * @param trackIndex 0-based index of the track
+     * @param volume     Value between 0.0 and 1.0
+     * @throws BitwigApiException if track index is out of bounds or track doesn't exist
+     */
+    public void setTrackVolume(int trackIndex, double volume) throws BitwigApiException {
+        final String operation = "setTrackVolume";
+        if (trackIndex < 0 || trackIndex >= trackBank.getSizeOfBank()) {
+            throw new BitwigApiException(ErrorCode.INVALID_RANGE, operation,
+                    "Track index " + trackIndex + " is out of range (0-" + (trackBank.getSizeOfBank() - 1) + ")");
+        }
+        if (volume < 0.0 || volume > 1.0) {
+            throw new BitwigApiException(ErrorCode.INVALID_PARAMETER, operation,
+                    "Volume value must be between 0.0 and 1.0, got: " + volume);
+        }
+        try {
+            Track track = trackBank.getItemAt(trackIndex);
+            if (!track.exists().get()) {
+                throw new BitwigApiException(ErrorCode.TRACK_NOT_FOUND, operation,
+                        "Track at index " + trackIndex + " does not exist");
+            }
+            track.volume().value().set(volume);
+            logger.info("BitwigApiFacade: Set track " + trackIndex + " volume to: " + volume);
+        } catch (Exception e) {
+            throw new BitwigApiException(ErrorCode.BITWIG_API_ERROR, operation,
+                    "Failed to set track volume: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Sets the pan of a track (normalized value 0.0 to 1.0, 0.5 is center).
+     *
+     * @param trackIndex 0-based index of the track
+     * @param pan        Value between 0.0 and 1.0
+     * @throws BitwigApiException if track index is out of bounds or track doesn't exist
+     */
+    public void setTrackPan(int trackIndex, double pan) throws BitwigApiException {
+        final String operation = "setTrackPan";
+        if (trackIndex < 0 || trackIndex >= trackBank.getSizeOfBank()) {
+            throw new BitwigApiException(ErrorCode.INVALID_RANGE, operation,
+                    "Track index " + trackIndex + " is out of range (0-" + (trackBank.getSizeOfBank() - 1) + ")");
+        }
+        if (pan < 0.0 || pan > 1.0) {
+            throw new BitwigApiException(ErrorCode.INVALID_PARAMETER, operation,
+                    "Pan value must be between 0.0 and 1.0, got: " + pan);
+        }
+        try {
+            Track track = trackBank.getItemAt(trackIndex);
+            if (!track.exists().get()) {
+                throw new BitwigApiException(ErrorCode.TRACK_NOT_FOUND, operation,
+                        "Track at index " + trackIndex + " does not exist");
+            }
+            track.pan().value().set(pan);
+            logger.info("BitwigApiFacade: Set track " + trackIndex + " pan to: " + pan);
+        } catch (Exception e) {
+            throw new BitwigApiException(ErrorCode.BITWIG_API_ERROR, operation,
+                    "Failed to set track pan: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Sets the transport tempo (BPM).
+     *
+     * @param bpm The target tempo in Beats Per Minute
+     */
+    public void setTempo(double bpm) {
+        logger.info("BitwigApiFacade: Setting transport tempo to: " + bpm);
+        transport.tempo().setRaw(bpm);
+    }
+
+    /**
+     * Enables or disables the metronome.
+     *
+     * @param enabled true to enable, false to disable
+     */
+    public void setMetronome(boolean enabled) {
+        logger.info("BitwigApiFacade: Setting metronome enabled to: " + enabled);
+        transport.isMetronomeEnabled().set(enabled);
+    }
+
+    /**
+     * Enables or disables the arranger loop.
+     *
+     * @param enabled true to enable, false to disable
+     */
+    public void setLoop(boolean enabled) {
+        logger.info("BitwigApiFacade: Setting arranger loop enabled to: " + enabled);
+        transport.isArrangerLoopEnabled().set(enabled);
+    }
+
+    /**
+     * Enables or disables arranger record-arm.
+     *
+     * @param enabled true to enable, false to disable
+     */
+    public void setRecordArm(boolean enabled) {
+        logger.info("BitwigApiFacade: Setting arranger record-arm enabled to: " + enabled);
+        transport.isArrangerRecordEnabled().set(enabled);
+    }
+
+    /**
+     * Sets the bypass state of a device on a specific track.
+     *
+     * @param trackIndex  0-based track index
+     * @param deviceIndex 0-based device index
+     * @param bypassed    true to bypass (disable), false to enable
+     * @throws BitwigApiException if track or device is not found
+     */
+    public void setDeviceBypass(int trackIndex, int deviceIndex, boolean bypassed) throws BitwigApiException {
+        final String operation = "setDeviceBypass";
+        logger.info("BitwigApiFacade: Setting device " + deviceIndex + " on track " + trackIndex + " bypassed to: " + bypassed);
+
+        if (trackIndex < 0 || trackIndex >= trackDeviceBanks.size()) {
+            throw new BitwigApiException(ErrorCode.INVALID_RANGE, operation,
+                    "Track index " + trackIndex + " is out of range");
+        }
+
+        try {
+            DeviceBank deviceBank = trackDeviceBanks.get(trackIndex);
+            if (deviceIndex < 0 || deviceIndex >= deviceBank.getSizeOfBank()) {
+                throw new BitwigApiException(ErrorCode.INVALID_RANGE, operation,
+                        "Device index " + deviceIndex + " is out of range");
+            }
+            Device device = deviceBank.getItemAt(deviceIndex);
+            if (!device.exists().get()) {
+                throw new BitwigApiException(ErrorCode.DEVICE_NOT_FOUND, operation,
+                        "Device at index " + deviceIndex + " on track " + trackIndex + " does not exist");
+            }
+            // In Bitwig API: isEnabled = !bypassed
+            device.isEnabled().set(!bypassed);
+            logger.info("BitwigApiFacade: Successfully set device bypass state.");
+        } catch (BitwigApiException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new BitwigApiException(ErrorCode.BITWIG_API_ERROR, operation,
+                    "Failed to set device bypass state: " + e.getMessage());
+        }
+    }
 }
+
+

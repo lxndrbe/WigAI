@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "wigai",
   "display_name": "WigAI — Bitwig Studio Control",
-  "version": "0.2.0",
+  "version": "1.0.1",
   "description": "Control Bitwig Studio from Claude — transport, devices, tracks, clips, scenes, and one-click Bitwig device insertion.",
   "long_description": "WigAI turns Bitwig Studio into an MCP-controllable instrument. The WigAI Bitwig extension runs an embedded MCP server inside Bitwig (default `http://localhost:61169/mcp`); this Desktop Extension bundles a stdio↔HTTP proxy so Claude Desktop can connect to it with a single click — no JSON configuration required.\n\n**Prerequisite:** Bitwig Studio must be running with the WigAI `.bwextension` installed and activated. See the WigAI repository for the extension download and setup.\n\n**Capabilities:** transport control, device parameter read/write, track & scene listing, clip & scene launching, and inserting Bitwig-native devices by UUID.",
   "author": {
@@ -48,7 +48,17 @@
     { "name": "list_scenes", "description": "List all scenes" },
     { "name": "get_clips_in_scene", "description": "Get clip slots in a scene" },
     { "name": "list_bitwig_devices", "description": "List known Bitwig devices with their UUIDs" },
-    { "name": "insert_bitwig_device", "description": "Insert a Bitwig-native device into a track by UUID" }
+    { "name": "insert_bitwig_device", "description": "Insert a device (native, VST3, CLAP, or VST2) into a track by ID/UUID" },
+    { "name": "create_track", "description": "Create a new track (audio, instrument, effect, or group)" },
+    { "name": "rename_track", "description": "Rename a track by its index" },
+    { "name": "delete_selected_device", "description": "Delete the currently selected device" },
+    { "name": "select_next_device", "description": "Select the next device in the chain" },
+    { "name": "select_previous_device", "description": "Select the previous device in the chain" },
+    { "name": "select_first_device", "description": "Select the first device in the chain" },
+    { "name": "select_track", "description": "Select/focus a track by index" },
+    { "name": "set_track_parameter", "description": "Set track volume, pan, mute, solo, or arm" },
+    { "name": "set_device_bypass", "description": "Bypass or activate a device by track and device index" },
+    { "name": "configure_transport", "description": "Set tempo, metronome, loop, or record-arm" }
   ],
   "user_config": {
     "server_url": {

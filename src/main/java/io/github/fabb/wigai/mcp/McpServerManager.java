@@ -29,6 +29,13 @@ import com.bitwig.extension.controller.api.ControllerHost;
 import io.github.fabb.wigai.mcp.tool.SceneByNameTool;
 import io.github.fabb.wigai.mcp.tool.ListBitwigDevicesTool;
 import io.github.fabb.wigai.mcp.tool.InsertBitwigDeviceTool;
+import io.github.fabb.wigai.mcp.tool.CreateTrackTool;
+import io.github.fabb.wigai.mcp.tool.RenameTrackTool;
+import io.github.fabb.wigai.mcp.tool.DeleteDeviceTool;
+import io.github.fabb.wigai.mcp.tool.SelectDeviceTool;
+import io.github.fabb.wigai.mcp.tool.SelectTrackTool;
+import io.github.fabb.wigai.mcp.tool.TrackControlTool;
+import io.github.fabb.wigai.mcp.tool.BypassDeviceTool;
 
 /**
  * Manages the MCP server for the WigAI extension.
@@ -146,6 +153,7 @@ public class McpServerManager {
                 StatusTool.specification(this.extensionDefinition, bitwigApiFacade, structuredLogger),
                 TransportTool.transportStartSpecification(transportController, structuredLogger),
                 TransportTool.transportStopSpecification(transportController, structuredLogger),
+                TransportTool.configureTransportSpecification(transportController, structuredLogger),
                 ClipTool.launchClipSpecification(clipSceneController, structuredLogger),
                 SceneTool.launchSceneByIndexSpecification(clipSceneController, structuredLogger),
                 SceneByNameTool.launchSceneByNameSpecification(clipSceneController, structuredLogger),
@@ -159,7 +167,16 @@ public class McpServerManager {
                 ListScenesTool.specification(bitwigApiFacade, structuredLogger),
                 GetClipsInSceneTool.getClipsInSceneSpecification(clipSceneController, structuredLogger),
                 ListBitwigDevicesTool.specification(deviceRegistry, structuredLogger),
-                InsertBitwigDeviceTool.specification(bitwigApiFacade, deviceRegistry, structuredLogger)
+                InsertBitwigDeviceTool.specification(bitwigApiFacade, deviceRegistry, structuredLogger),
+                CreateTrackTool.specification(bitwigApiFacade, structuredLogger),
+                RenameTrackTool.specification(bitwigApiFacade, structuredLogger),
+                DeleteDeviceTool.specification(bitwigApiFacade, structuredLogger),
+                SelectDeviceTool.selectNextDeviceSpecification(bitwigApiFacade, structuredLogger),
+                SelectDeviceTool.selectPreviousDeviceSpecification(bitwigApiFacade, structuredLogger),
+                SelectDeviceTool.selectFirstDeviceSpecification(bitwigApiFacade, structuredLogger),
+                SelectTrackTool.specification(bitwigApiFacade, structuredLogger),
+                TrackControlTool.specification(bitwigApiFacade, structuredLogger),
+                BypassDeviceTool.specification(bitwigApiFacade, structuredLogger)
             )
             .build();
 

@@ -17,10 +17,8 @@ import java.util.Map;
 import java.util.function.BiFunction;
 
 /**
- * MCP tool that inserts a Bitwig-native device into a track's device chain by UUID.
- *
- * Only Bitwig-native devices (bitwig_audio_fx, bitwig_instruments) can be inserted
- * via the Controller API. Use list_bitwig_devices to discover valid UUIDs.
+ * MCP tool that inserts a device (native, VST3, CLAP, or VST2) into a track's device chain by ID/UUID.
+ * Use list_bitwig_devices to discover valid IDs.
  */
 public class InsertBitwigDeviceTool {
 
@@ -39,7 +37,7 @@ public class InsertBitwigDeviceTool {
                 },
                 "device_uuid": {
                   "type": "string",
-                  "description": "UUID of the Bitwig-native device to insert. Use list_bitwig_devices to find valid UUIDs."
+                  "description": "ID/UUID of the device to insert. Use list_bitwig_devices to find valid IDs."
                 },
                 "position": {
                   "type": "string",
@@ -54,10 +52,8 @@ public class InsertBitwigDeviceTool {
         var tool = McpSchema.Tool.builder()
                 .name("insert_bitwig_device")
                 .description("""
-                        Insert a Bitwig-native device into a track's device chain by UUID. \
-                        Only Bitwig-native devices (instruments and audio effects built into Bitwig) \
-                        can be inserted this way — not VST/CLAP plugins. \
-                        Use list_bitwig_devices to discover available device UUIDs. \
+                        Insert a device (native, VST3, CLAP, or VST2) into a track's device chain by ID/UUID. \
+                        Use list_bitwig_devices to discover available device IDs/UUIDs. \
                         The device is appended at the end of the chain by default; \
                         use position='start' to prepend instead.""")
                 .inputSchema(schema)
@@ -70,18 +66,22 @@ public class InsertBitwigDeviceTool {
                         logger,
                         (args, operation) -> validateParameters(args, operation, deviceRegistry),
                         (params) -> {
-                            bitwigApiFacade.insertBitwigDevice(
-                                    params.trackIndex(), params.deviceUuid(), params.position());
                             DeviceRegistry.DeviceInfo info =
                                     deviceRegistry.findById(params.deviceUuid()).orElse(null);
+                            if (info == null) {
+                                throw new BitwigApiException(ErrorCode.INVALID_PARAMETER, "insert_bitwig_device",
+                                        "Device registry does not contain device with ID: " + params.deviceUuid());
+                            }
+                            bitwigApiFacade.insertDevice(
+                                    params.trackIndex(), info.category(), params.deviceUuid(), params.position());
                             Map<String, Object> result = new LinkedHashMap<>();
                             result.put("action", "insert_bitwig_device");
                             result.put("track_index", params.trackIndex());
                             result.put("device_uuid", params.deviceUuid());
-                            result.put("device_name", info != null ? info.name() : "unknown");
+                            result.put("device_name", info.name());
                             result.put("position", params.position());
-                            result.put("message", "Device '" + (info != null ? info.name() : params.deviceUuid())
-                                    + "' inserted at " + params.position() + " of track " + params.trackIndex() + ".");
+                            result.put("message", "Device '" + info.name() + "' (" + info.category() + ") inserted at "
+                                    + params.position() + " of track " + params.trackIndex() + ".");
                             return result;
                         }
                 );
@@ -107,9 +107,8 @@ public class InsertBitwigDeviceTool {
 
         if (!deviceRegistry.isInsertable(deviceUuid)) {
             throw new BitwigApiException(ErrorCode.INVALID_PARAMETER, operation,
-                    "Unknown or non-insertable device UUID: '" + deviceUuid
-                    + "'. Only Bitwig-native device UUIDs are supported. "
-                    + "Use list_bitwig_devices to find valid UUIDs.");
+                    "Unknown or non-insertable device ID: '" + deviceUuid
+                    + "'. Use list_bitwig_devices to find valid IDs.");
         }
 
         String position = "end";

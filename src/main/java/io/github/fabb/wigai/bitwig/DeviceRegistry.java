@@ -22,6 +22,12 @@ public class DeviceRegistry {
     private static final Set<String> BITWIG_NATIVE_CATEGORIES =
             Set.of("bitwig_audio_fx", "bitwig_instruments");
 
+    private static final Set<String> INSERTABLE_CATEGORIES =
+            Set.of("bitwig_audio_fx", "bitwig_instruments",
+                   "clap_audio_fx", "clap_instruments",
+                   "vst2_audio_fx", "vst2_instruments",
+                   "vst3_audio_fx", "vst3_instruments");
+
     public record DeviceInfo(String name, String category, String id) {
         public boolean isBitwigNative() {
             return BITWIG_NATIVE_CATEGORIES.contains(category);
@@ -52,7 +58,7 @@ public class DeviceRegistry {
                         String id = deviceEntry.getValue().asText().trim();
                         DeviceInfo info = new DeviceInfo(name, category, id);
                         list.add(info);
-                        if (BITWIG_NATIVE_CATEGORIES.contains(category)) {
+                        if (INSERTABLE_CATEGORIES.contains(category)) {
                             idMap.put(id, info);
                             nameMap.put(name.toLowerCase(Locale.ROOT), id);
                         }
@@ -61,7 +67,7 @@ public class DeviceRegistry {
                 });
                 int total = categoryMap.values().stream().mapToInt(List::size).sum();
                 logger.info("DeviceRegistry: loaded " + idMap.size()
-                        + " insertable Bitwig-native devices, " + total + " total across all categories");
+                        + " insertable devices, " + total + " total across all categories");
             }
         } catch (Exception e) {
             logger.error("DeviceRegistry: failed to load device registry", e);

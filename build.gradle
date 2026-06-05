@@ -1,0 +1,80 @@
+plugins {
+    id 'java'
+    id 'com.gradleup.shadow' version '8.3.0'
+}
+
+group = 'io.github.fabb'
+version = '1.0.1'
+
+repositories {
+    mavenCentral()
+    maven {
+        url = uri("https://maven.bitwig.com")
+    }
+}
+
+dependencies {
+    // Bitwig Extension API
+    implementation 'com.bitwig:extension-api:25'
+
+    // MCP Java SDK
+    implementation platform('io.modelcontextprotocol.sdk:mcp-bom:0.11.0')
+    implementation 'io.modelcontextprotocol.sdk:mcp'
+    implementation 'jakarta.servlet:jakarta.servlet-api:6.0.0'
+    testImplementation 'io.modelcontextprotocol.sdk:mcp-test'
+
+    // Jetty 11 for embedded server and servlet support (EE9)
+    implementation 'org.eclipse.jetty:jetty-server:11.0.20'
+    implementation 'org.eclipse.jetty:jetty-servlet:11.0.20'
+
+    // Use JUnit Jupiter for testing
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.0'
+}
+
+java {
+    // Compile using Java 21 compatibility so the resulting extension runs on both Java 21 and 25
+    sourceCompatibility = JavaVersion.toVersion('21')
+    targetCompatibility = JavaVersion.toVersion('21')
+}
+
+testing {
+    suites {
+        test {
+            useJUnitJupiter()
+        }
+    }
+}
+
+// Configure the Shadow JAR (fat JAR with all dependencies)
+shadowJar {
+    archiveFileName = "wigai-all-${project.version}.jar"
+    manifest.inheritFrom(tasks.jar.manifest)
+    mergeServiceFiles() // Merge META-INF/services for SPI
+}
+
+// Task to create the .bwextension file
+tasks.register('bwextension', Jar) {
+    group = 'build'
+    description = 'Creates the .bwextension file, a JAR with a proper manifest and all dependencies.'
+
+    dependsOn tasks.shadowJar
+
+    archiveFileName = 'WigAI.bwextension'
+    destinationDirectory = layout.buildDirectory.dir('extensions')
+
+    manifest {
+        attributes(
+            'Implementation-Title': project.name,
+            'Implementation-Version': project.version.toString(),
+            'Implementation-Vendor': project.group.toString(),
+            'Created-By': "Gradle ${gradle.gradleVersion}"
+        )
+    }
+
+    // Include all content from the shadowJar.
+    from zipTree(tasks.shadowJar.archiveFile)
+}
+
+// Make the build task also create the .bwextension file
+build.dependsOn bwextension

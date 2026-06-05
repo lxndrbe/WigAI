@@ -51,14 +51,20 @@ Once active, the MCP server is reachable at `http://localhost:61169/mcp`.
 
 ## Connecting Claude
 
-### Option A — One-click install (Claude Desktop)
+### Option A — Install via Claude Desktop Extensions (Recommended)
 
-WigAI ships a `.mcpb` [Desktop Extension](https://github.com/anthropics/mcpb) bundle that connects Claude Desktop to the running WigAI server — no manual JSON editing.
+WigAI ships a `.mcpb` [Desktop Extension](https://github.com/anthropics/mcpb) bundle that connects Claude Desktop to the running WigAI server without editing your configuration files manually.
+
+> [!IMPORTANT]
+> **Prerequisite:** Bitwig Studio must be open and the WigAI extension activated (orange checkmark in Controller Settings) *before* installing the extension or starting Claude Desktop. Otherwise, the proxy will fail to establish the connection and Claude will show a "Server disconnected" error.
 
 1. Make sure Bitwig Studio is running with the WigAI extension activated.
-2. Download `WigAI.mcpb` from the [releases](https://github.com/lxndrbe/WigAI/releases) (or build it, see below).
-3. Open it with Claude Desktop, or drag it into **Settings → Extensions**, and click **Install**.
-4. If you changed the port in Bitwig's WigAI preferences, update the **WigAI Server URL** field during install.
+2. Download `WigAI.mcpb` from this repository or the releases.
+3. Open **Claude Desktop** and click the gear icon in the bottom-left corner to open **Settings** (Einstellungen).
+4. Navigate to the **Extensions** (Erweiterungen) tab.
+5. Click on **Extension Settings** (Erweiterungseinstellungen / Entwicklereinstellungen).
+6. At the bottom, click **Install Extension** (Erweiterung installieren) and choose the downloaded `WigAI.mcpb` file.
+7. If you changed the port in Bitwig's WigAI preferences, update the **WigAI Server URL** field during the installation and click **Install**.
 
 The bundle packages a small stdio↔HTTP proxy ([`mcp-remote`](https://www.npmjs.com/package/mcp-remote)); it requires Node.js 18+ on your system.
 
@@ -85,6 +91,7 @@ Other clients can point at `http://localhost:61169/mcp` directly using an HTTP/S
 |------|-------------|
 | `status` | Full snapshot: transport, project, selected track & device |
 | `transport_start` / `transport_stop` | Start / stop playback |
+| `configure_transport` | Set tempo (BPM), metronome, arranger loop, or record-arm |
 | `get_selected_device_parameters` | Read parameters of the selected device |
 | `set_selected_device_parameter` | Set one parameter (index + value 0.0–1.0) |
 | `set_selected_device_parameters` | Set multiple parameters at once |
@@ -98,7 +105,14 @@ Other clients can point at `http://localhost:61169/mcp` directly using an HTTP/S
 | `list_scenes` | List all scenes |
 | `get_clips_in_scene` | Clip slots in a scene |
 | `list_bitwig_devices` | Known Bitwig devices with UUIDs |
-| `insert_bitwig_device` | Insert a Bitwig-native device into a track by UUID |
+| `insert_bitwig_device` | Insert a device (native, VST3, CLAP, or VST2) into a track by ID/UUID |
+| `create_track` | Create a new track (audio, instrument, or effect) |
+| `rename_track` | Rename a track by its index |
+| `delete_selected_device` | Delete the currently selected device |
+| `select_next_device` / `select_previous_device` / `select_first_device` | Navigate device selection in the track chain |
+| `select_track` | Select/focus a track by index |
+| `set_track_parameter` | Set track volume, pan, mute, solo, or arm |
+| `set_device_bypass` | Bypass or activate a device by track and device index |
 
 ## Compatible AI Agents
 
@@ -126,6 +140,17 @@ This project uses [Conventional Commits](https://www.conventionalcommits.org/):
 - `fix:` — bug fixes (patch version bump)
 - `feat!:` / `BREAKING CHANGE:` — breaking changes (major version bump)
 - `chore:`, `docs:`, `style:`, `refactor:`, `test:` — no version bump
+
+## Troubleshooting
+
+**Claude Desktop shows "Server disconnected":**
+- Is Bitwig Studio running? The WigAI MCP server only runs when Bitwig Studio is open and the extension is initialized.
+- Is the extension added and active under **Settings → Controllers** in Bitwig? It should have an orange active light.
+- If Bitwig was opened after Claude Desktop started, click "Retry" or restart Claude Desktop.
+
+**Extension doesn't load/activate in Bitwig:**
+- Do you have Java 21 installed? Run `java -version` in terminal.
+- Is `WigAI.bwextension` in the correct folder (`%USERPROFILE%\Documents\Bitwig Studio\Extensions`)?
 
 ## License
 

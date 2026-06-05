@@ -55,4 +55,34 @@ public class TransportController {
             throw new BitwigApiException(ErrorCode.TRANSPORT_ERROR, "stopTransport", "Failed to stop transport playback", e);
         }
     }
+
+    /**
+     * Configures various transport settings.
+     *
+     * @param tempo     Optional tempo in BPM
+     * @param metronome Optional metronome toggle
+     * @param loop      Optional arranger loop toggle
+     * @param recordArm Optional arranger record-arm toggle
+     * @return A message indicating configuration results
+     */
+    public String configureTransport(Double tempo, Boolean metronome, Boolean loop, Boolean recordArm) {
+        StringBuilder sb = new StringBuilder("Transport configuration updated:");
+        if (tempo != null) {
+            bitwigApiFacade.setTempo(tempo);
+            sb.append(" tempo=").append(tempo).append(" BPM");
+        }
+        if (metronome != null) {
+            bitwigApiFacade.setMetronome(metronome);
+            sb.append(" metronome=").append(metronome);
+        }
+        if (loop != null) {
+            bitwigApiFacade.setLoop(loop);
+            sb.append(" loop=").append(loop);
+        }
+        if (recordArm != null) {
+            bitwigApiFacade.setRecordArm(recordArm);
+            sb.append(" recordArm=").append(recordArm);
+        }
+        return sb.toString();
+    }
 }
