@@ -46,7 +46,7 @@ public class WigAIExtensionDefinition extends ControllerExtensionDefinition {
 
     @Override
     public int getRequiredAPIVersion() {
-        return 19;
+        return 25;
     }
 
     @Override

@@ -22,7 +22,7 @@ repositories {
 
 dependencies {
     // Bitwig Extension API
-    implementation("com.bitwig:extension-api:19")
+    implementation("com.bitwig:extension-api:25")
 
     // MCP Java SDK
     // you can look up the documentation with tool context7
