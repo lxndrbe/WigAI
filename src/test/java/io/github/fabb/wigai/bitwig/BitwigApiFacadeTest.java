@@ -98,7 +98,7 @@ public class BitwigApiFacadeTest {
         when(mockMasterTrack.createCursorRemoteControlsPage(8)).thenReturn(mockProjectParameterBank);
 
         // Setup TrackBank mocks (new for clip launching) - use smaller sizes for testing
-        when(mockHost.createTrackBank(128, 0, 128)).thenReturn(mockTrackBank);
+        when(mockHost.createTrackBank(anyInt(), anyInt(), anyInt())).thenReturn(mockTrackBank);
         when(mockTrackBank.getSizeOfBank()).thenReturn(8); // Reduced from 128 to 8 for testing
         when(mockTrackBank.getItemAt(anyInt())).thenReturn(mockTrack);
         when(mockTrack.clipLauncherSlotBank()).thenReturn(mockClipLauncherSlotBank);
@@ -111,7 +111,7 @@ public class BitwigApiFacadeTest {
         when(mockSendBank.getItemAt(anyInt())).thenReturn(mockSend);
 
         // Setup SceneBank mocks (new for scene launching) - use smaller sizes for testing
-        when(mockHost.createSceneBank(128)).thenReturn(mockSceneBank);
+        when(mockHost.createSceneBank(anyInt())).thenReturn(mockSceneBank);
         when(mockSceneBank.getItemAt(anyInt())).thenReturn(mockScene);
         when(mockSceneBank.getSizeOfBank()).thenReturn(8); // Reduced from 128 to 8 for testing
 
@@ -155,7 +155,7 @@ public class BitwigApiFacadeTest {
         lenient().when(mockTrack.createParentTrack(0, 0)).thenReturn(mockParentTrack);
 
         // Setup device bank mocks for tracks - use smaller sizes for testing
-        lenient().when(mockTrack.createDeviceBank(128)).thenReturn(mockDeviceBank);
+        lenient().when(mockTrack.createDeviceBank(anyInt())).thenReturn(mockDeviceBank);
         lenient().when(mockDeviceBank.getSizeOfBank()).thenReturn(8);
         lenient().when(mockDeviceBank.getItemAt(anyInt())).thenReturn(mockDevice);
         lenient().when(mockDevice.exists()).thenReturn(mock(com.bitwig.extension.controller.api.BooleanValue.class));

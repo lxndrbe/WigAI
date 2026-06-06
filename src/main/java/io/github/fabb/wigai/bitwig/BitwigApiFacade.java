@@ -29,9 +29,9 @@ public class BitwigApiFacade {
         public static final String DEFAULT_BEAT_POSITION = "1.1.1:0";
         public static final String DEFAULT_COLOR = "rgb(128,128,128)";
         public static final String DEFAULT_TIME_STRING = "0:00.000";
-        public static final int MAX_TRACKS = 128;
-        public static final int MAX_SCENES = 128;
-        public static final int MAX_DEVICES_PER_TRACK = 128;
+        public static final int MAX_TRACKS = 64;
+        public static final int MAX_SCENES = 64;
+        public static final int MAX_DEVICES_PER_TRACK = 32;
         public static final int TICKS_PER_SIXTEENTH = 240;
         public static final int BEATS_PER_MEASURE = 4;
         public static final int SIXTEENTHS_PER_BEAT = 4;
@@ -53,6 +53,10 @@ public class BitwigApiFacade {
     private final RemoteControlsPage projectParameterBank;
     private final List<DeviceBank> trackDeviceBanks;
     private final List<Track> parentTracks;
+    private final List<List<DeviceBank>> nestedDeviceBanks;
+    private final List<List<DeviceLayerBank>> trackDeviceLayerBanks;
+    private final List<List<List<DeviceBank>>> trackDeviceLayerDeviceBanks;
+    private final List<List<DeviceBank>> trackDeviceSlotBanks;
 
     private int selectedDevicePageIndex = -1;
     private String selectedDevicePageName = "";
@@ -109,8 +113,13 @@ public class BitwigApiFacade {
             trackDeviceBanks.add(deviceBank);
         }
 
-        // Initialize parent tracks for each track and mark interested to enable hierarchy observers
+        // Initialize parent tracks and nested device fields
         this.parentTracks = new ArrayList<>();
+        this.nestedDeviceBanks = new ArrayList<>();
+        this.trackDeviceLayerBanks = new ArrayList<>();
+        this.trackDeviceLayerDeviceBanks = new ArrayList<>();
+        this.trackDeviceSlotBanks = new ArrayList<>();
+
         for (int i = 0; i < trackBank.getSizeOfBank(); i++) {
             Track track = trackBank.getItemAt(i);
             Track parentTrack = track.createParentTrack(0, 0);
@@ -119,6 +128,11 @@ public class BitwigApiFacade {
                 parentTrack.name().markInterested();
             }
             parentTracks.add(parentTrack);
+
+            nestedDeviceBanks.add(new ArrayList<>());
+            trackDeviceLayerBanks.add(new ArrayList<>());
+            trackDeviceLayerDeviceBanks.add(new ArrayList<>());
+            trackDeviceSlotBanks.add(new ArrayList<>());
         }
 
         // Mark interest in device properties to enable value access
@@ -190,14 +204,116 @@ public class BitwigApiFacade {
             track.isActivated().markInterested();
             track.color().markInterested();
 
-            // Mark interest in device properties for this track
+            // Mark interest in device properties for this track and initialize nested structures
             DeviceBank deviceBank = trackDeviceBanks.get(trackIndex);
+            List<DeviceBank> trackNestedBanks = nestedDeviceBanks.get(trackIndex);
+            List<DeviceLayerBank> trackLayerBanks = trackDeviceLayerBanks.get(trackIndex);
+            List<List<DeviceBank>> trackLayerDevBanks = trackDeviceLayerDeviceBanks.get(trackIndex);
+            List<DeviceBank> trackSlotBanks = trackDeviceSlotBanks.get(trackIndex);
+
+            int nestedLimit = Math.min(deviceBank.getSizeOfBank(), 8);
             for (int deviceIndex = 0; deviceIndex < deviceBank.getSizeOfBank(); deviceIndex++) {
                 Device device = deviceBank.getItemAt(deviceIndex);
-                device.exists().markInterested();
-                device.name().markInterested();
-                device.isEnabled().markInterested();
-                device.deviceType().markInterested();
+                if (device == null) {
+                    continue;
+                }
+                if (device.exists() != null) device.exists().markInterested();
+                if (device.name() != null) device.name().markInterested();
+                if (device.isEnabled() != null) device.isEnabled().markInterested();
+                if (device.deviceType() != null) device.deviceType().markInterested();
+
+                // Nesting metadata interest (with defensive null checks for mocks)
+                if (device.hasLayers() != null) device.hasLayers().markInterested();
+                if (device.hasSlots() != null) device.hasSlots().markInterested();
+                if (device.isNested() != null) device.isNested().markInterested();
+                if (device.slotNames() != null) device.slotNames().markInterested();
+
+                if (deviceIndex >= nestedLimit) {
+                    continue;
+                }
+
+                // 1. Nested chain (e.g. FX chain)
+                DeviceChain nestedChain = null;
+                try {
+                    nestedChain = device.deviceChain();
+                } catch (Exception ignored) {}
+                
+                DeviceBank nestedBank = null;
+                if (nestedChain != null) {
+                    nestedBank = nestedChain.createDeviceBank(8);
+                    if (nestedBank != null) {
+                        for (int nd = 0; nd < nestedBank.getSizeOfBank(); nd++) {
+                            Device ndev = nestedBank.getItemAt(nd);
+                            if (ndev != null) {
+                                if (ndev.exists() != null) ndev.exists().markInterested();
+                                if (ndev.name() != null) ndev.name().markInterested();
+                                if (ndev.isEnabled() != null) ndev.isEnabled().markInterested();
+                                if (ndev.deviceType() != null) ndev.deviceType().markInterested();
+                                
+                                if (ndev.hasLayers() != null) ndev.hasLayers().markInterested();
+                                if (ndev.hasSlots() != null) ndev.hasSlots().markInterested();
+                                if (ndev.isNested() != null) ndev.isNested().markInterested();
+                            }
+                        }
+                    }
+                }
+                trackNestedBanks.add(nestedBank);
+
+                // 2. Parallel layers
+                DeviceLayerBank layerBank = null;
+                List<DeviceBank> layerDevs = new ArrayList<>();
+                try {
+                    layerBank = device.createLayerBank(4);
+                } catch (Exception ignored) {}
+                
+                if (layerBank != null) {
+                    for (int l = 0; l < layerBank.getSizeOfBank(); l++) {
+                        DeviceLayer layer = layerBank.getItemAt(l);
+                        if (layer != null) {
+                            if (layer.exists() != null) layer.exists().markInterested();
+                            if (layer.name() != null) layer.name().markInterested();
+
+                            DeviceBank layerDevBank = layer.createDeviceBank(8);
+                            if (layerDevBank != null) {
+                                for (int ld = 0; ld < layerDevBank.getSizeOfBank(); ld++) {
+                                    Device ldev = layerDevBank.getItemAt(ld);
+                                    if (ldev != null) {
+                                        if (ldev.exists() != null) ldev.exists().markInterested();
+                                        if (ldev.name() != null) ldev.name().markInterested();
+                                        if (ldev.isEnabled() != null) ldev.isEnabled().markInterested();
+                                        if (ldev.deviceType() != null) ldev.deviceType().markInterested();
+                                    }
+                                }
+                            }
+                            layerDevs.add(layerDevBank);
+                        }
+                    }
+                }
+                trackLayerBanks.add(layerBank);
+                trackLayerDevBanks.add(layerDevs);
+
+                // 3. Active slot
+                DeviceSlot activeSlot = null;
+                try {
+                    activeSlot = device.getCursorSlot();
+                } catch (Exception ignored) {}
+                
+                DeviceBank slotBank = null;
+                if (activeSlot != null) {
+                    slotBank = activeSlot.createDeviceBank(8);
+                    if (slotBank != null) {
+                        for (int sd = 0; sd < slotBank.getSizeOfBank(); sd++) {
+                            Device sdev = slotBank.getItemAt(sd);
+                            if (sdev != null) {
+                                if (sdev.exists() != null) sdev.exists().markInterested();
+                                if (sdev.name() != null) sdev.name().markInterested();
+                                if (sdev.isEnabled() != null) sdev.isEnabled().markInterested();
+                                if (sdev.deviceType() != null) sdev.deviceType().markInterested();
+                            }
+                        }
+                    }
+                }
+                trackSlotBanks.add(slotBank);
             }
 
             // Mark interest in commonly used channel controls
@@ -1101,11 +1217,17 @@ public class BitwigApiFacade {
 
                 // Get device type
                 String deviceType = device.deviceType().get();
-                deviceInfo.put("type", deviceType);
+                deviceInfo.put("type", mapDeviceType(deviceType));
 
                 // Get device enabled status (bypassed = !enabled)
                 boolean isEnabled = device.isEnabled().get();
                 deviceInfo.put("bypassed", !isEnabled);
+
+                // Get nested chains
+                List<Map<String, Object>> nestedChains = getNestedChains(trackIndex, i, device);
+                if (!nestedChains.isEmpty()) {
+                    deviceInfo.put("nested_chains", nestedChains);
+                }
 
                 devices.add(deviceInfo);
             }
@@ -1117,6 +1239,125 @@ public class BitwigApiFacade {
         }
 
         return devices;
+    }
+
+    private Map<String, Object> buildDeviceSummaryMap(int trackIndex, Device device, int deviceIndex) {
+        Map<String, Object> info = new LinkedHashMap<>();
+        info.put("index", deviceIndex);
+        String name = device.name().get();
+        info.put("name", name);
+        
+        // Map the device type
+        String rawDeviceType = device.deviceType().get();
+        String mappedType = mapDeviceType(rawDeviceType);
+        info.put("type", mappedType);
+        
+        // Bypassed
+        info.put("bypassed", !device.isEnabled().get());
+        
+        // Selection state
+        boolean isSelected = false;
+        try {
+            if (cursorTrack.exists().get() && cursorDevice.exists().get()) {
+                Track track = trackBank.getItemAt(trackIndex);
+                if (track.exists().get() && track.name().get().equals(cursorTrack.name().get())) {
+                    isSelected = name.equals(cursorDevice.name().get());
+                }
+            }
+        } catch (Exception ignored) {}
+        info.put("is_selected", isSelected);
+        
+        return info;
+    }
+
+    private List<Map<String, Object>> getNestedChains(int trackIndex, int deviceIndex, Device device) {
+        List<Map<String, Object>> chains = new ArrayList<>();
+        
+        try {
+            // 1. Single nested chain (deviceChain())
+            if (trackIndex >= 0 && trackIndex < nestedDeviceBanks.size() &&
+                deviceIndex >= 0 && deviceIndex < nestedDeviceBanks.get(trackIndex).size()) {
+                
+                DeviceBank nestedBank = nestedDeviceBanks.get(trackIndex).get(deviceIndex);
+                if (nestedBank != null) {
+                    List<Map<String, Object>> nestedDevs = new ArrayList<>();
+                    for (int i = 0; i < nestedBank.getSizeOfBank(); i++) {
+                        Device ndev = nestedBank.getItemAt(i);
+                        if (ndev.exists().get()) {
+                            nestedDevs.add(buildDeviceSummaryMap(trackIndex, ndev, i));
+                        }
+                    }
+                    if (!nestedDevs.isEmpty()) {
+                        Map<String, Object> chainInfo = new LinkedHashMap<>();
+                        chainInfo.put("name", "Device Chain");
+                        chainInfo.put("type", "chain");
+                        chainInfo.put("devices", nestedDevs);
+                        chains.add(chainInfo);
+                    }
+                }
+            }
+            
+            // 2. Parallel layers
+            if (trackIndex >= 0 && trackIndex < trackDeviceLayerBanks.size() &&
+                deviceIndex >= 0 && deviceIndex < trackDeviceLayerBanks.get(trackIndex).size()) {
+                
+                DeviceLayerBank layerBank = trackDeviceLayerBanks.get(trackIndex).get(deviceIndex);
+                List<DeviceBank> layerDevBanks = trackDeviceLayerDeviceBanks.get(trackIndex).get(deviceIndex);
+                
+                if (layerBank != null && layerDevBanks != null) {
+                    for (int l = 0; l < layerBank.getSizeOfBank(); l++) {
+                        DeviceLayer layer = layerBank.getItemAt(l);
+                        if (layer.exists().get()) {
+                            String layerName = layer.name().get();
+                            
+                            if (l < layerDevBanks.size()) {
+                                DeviceBank layerDevBank = layerDevBanks.get(l);
+                                List<Map<String, Object>> layerDevs = new ArrayList<>();
+                                for (int i = 0; i < layerDevBank.getSizeOfBank(); i++) {
+                                    Device ldev = layerDevBank.getItemAt(i);
+                                    if (ldev.exists().get()) {
+                                        layerDevs.add(buildDeviceSummaryMap(trackIndex, ldev, i));
+                                    }
+                                }
+                                
+                                Map<String, Object> chainInfo = new LinkedHashMap<>();
+                                chainInfo.put("name", layerName != null && !layerName.isEmpty() ? layerName : ("Layer " + (l + 1)));
+                                chainInfo.put("type", "layer");
+                                chainInfo.put("devices", layerDevs);
+                                chains.add(chainInfo);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. Active slot
+            if (trackIndex >= 0 && trackIndex < trackDeviceSlotBanks.size() &&
+                deviceIndex >= 0 && deviceIndex < trackDeviceSlotBanks.get(trackIndex).size()) {
+                
+                DeviceBank slotBank = trackDeviceSlotBanks.get(trackIndex).get(deviceIndex);
+                if (slotBank != null) {
+                    List<Map<String, Object>> slotDevs = new ArrayList<>();
+                    for (int i = 0; i < slotBank.getSizeOfBank(); i++) {
+                        Device sdev = slotBank.getItemAt(i);
+                        if (sdev.exists().get()) {
+                            slotDevs.add(buildDeviceSummaryMap(trackIndex, sdev, i));
+                        }
+                    }
+                    if (!slotDevs.isEmpty()) {
+                        Map<String, Object> chainInfo = new LinkedHashMap<>();
+                        chainInfo.put("name", "Active Slot");
+                        chainInfo.put("type", "slot");
+                        chainInfo.put("devices", slotDevs);
+                        chains.add(chainInfo);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.warn("BitwigApiFacade: Error getting nested chains: " + e.getMessage());
+        }
+        
+        return chains;
     }
 
     /**
@@ -1569,10 +1810,11 @@ public class BitwigApiFacade {
                 }
                 deviceInfo.put("is_selected", isDeviceSelected);
 
-                // Optional UI state fields - only include if available
-                // Per story requirements, omit these fields if not available from API
-                // deviceInfo.put("is_expanded", null);  // Omitted - not available from Controller API
-                // deviceInfo.put("is_window_open", null);  // Omitted - not available from Controller API
+                // Get nested chains
+                List<Map<String, Object>> nestedChains = getNestedChains(trackIndex, i, device);
+                if (!nestedChains.isEmpty()) {
+                    deviceInfo.put("nested_chains", nestedChains);
+                }
 
                 devices.add(deviceInfo);
             }

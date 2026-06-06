@@ -29,7 +29,7 @@ public class StatusTool {
             }""";
         var tool = McpSchema.Tool.builder()
             .name("status")
-            .description("Get WigAI operational status, version information, current project name, audio engine status, and detailed transport information.")
+            .description("Get WigAI operational status, version information, current project name, and audio engine status.")
             .inputSchema(schema)
             .build();
 
@@ -46,7 +46,6 @@ public class StatusTool {
                         List<String> partialFailures = new ArrayList<>();
                         try { responseData.put("project_name", bitwigApiFacade.getProjectName()); } catch (Exception e) { responseData.put("project_name", "Unknown Project"); partialFailures.add("project_name: " + e.getMessage()); }
                         try { responseData.put("audio_engine_active", bitwigApiFacade.isAudioEngineActive()); } catch (Exception e) { responseData.put("audio_engine_active", false); partialFailures.add("audio_engine_active: " + e.getMessage()); }
-                        try { responseData.put("transport", bitwigApiFacade.getTransportStatus()); } catch (Exception e) { responseData.put("transport", Map.of("error", "Transport status unavailable")); partialFailures.add("transport: " + e.getMessage()); }
                         try {
                             List<io.github.fabb.wigai.common.data.ParameterInfo> projectParams = bitwigApiFacade.getProjectParameters();
                             List<Map<String, Object>> projectParametersArray = new ArrayList<>();

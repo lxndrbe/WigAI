@@ -32,9 +32,7 @@
   },
   "tools_generated": true,
   "tools": [
-    { "name": "status", "description": "Get a full snapshot of transport, project, selected track and device" },
-    { "name": "transport_start", "description": "Start transport playback" },
-    { "name": "transport_stop", "description": "Stop transport playback" },
+    { "name": "status", "description": "Get a snapshot of operational status, version information, current project name, and audio engine status" },
     { "name": "get_selected_device_parameters", "description": "Read parameters of the selected device" },
     { "name": "set_selected_device_parameter", "description": "Set one parameter of the selected device" },
     { "name": "set_selected_device_parameters", "description": "Set multiple parameters of the selected device" },
@@ -42,9 +40,6 @@
     { "name": "list_tracks", "description": "List all tracks, optionally filtered by type" },
     { "name": "get_track_details", "description": "Get detailed info for a track incl. sends and clips" },
     { "name": "list_devices_on_track", "description": "List devices on a track" },
-    { "name": "launch_clip", "description": "Launch a clip by track name and clip index" },
-    { "name": "session_launchSceneByIndex", "description": "Launch a scene by index" },
-    { "name": "session_launchSceneByName", "description": "Launch a scene by name" },
     { "name": "list_scenes", "description": "List all scenes" },
     { "name": "get_clips_in_scene", "description": "Get clip slots in a scene" },
     { "name": "list_bitwig_devices", "description": "List known Bitwig devices with their UUIDs" },
@@ -56,9 +51,7 @@
     { "name": "select_previous_device", "description": "Select the previous device in the chain" },
     { "name": "select_first_device", "description": "Select the first device in the chain" },
     { "name": "select_track", "description": "Select/focus a track by index" },
-    { "name": "set_track_parameter", "description": "Set track volume, pan, mute, solo, or arm" },
     { "name": "set_device_bypass", "description": "Bypass or activate a device by track and device index" },
-    { "name": "configure_transport", "description": "Set tempo, metronome, loop, or record-arm" },
     { "name": "select_device_page", "description": "Select/switch a remote control parameter page on the currently selected device" }
   ],
   "user_config": {

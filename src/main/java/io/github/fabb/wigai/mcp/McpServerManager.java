@@ -152,12 +152,6 @@ public class McpServerManager {
                 .build())
             .tools(
                 StatusTool.specification(this.extensionDefinition, bitwigApiFacade, structuredLogger),
-                TransportTool.transportStartSpecification(transportController, structuredLogger),
-                TransportTool.transportStopSpecification(transportController, structuredLogger),
-                TransportTool.configureTransportSpecification(transportController, structuredLogger),
-                ClipTool.launchClipSpecification(clipSceneController, structuredLogger),
-                SceneTool.launchSceneByIndexSpecification(clipSceneController, structuredLogger),
-                SceneByNameTool.launchSceneByNameSpecification(clipSceneController, structuredLogger),
                 DeviceParamTool.getSelectedDeviceParametersSpecification(deviceController, structuredLogger),
                 DeviceParamTool.setSelectedDeviceParameterSpecification(deviceController, structuredLogger),
                 DeviceParamTool.setMultipleDeviceParametersSpecification(deviceController, structuredLogger),
@@ -177,7 +171,6 @@ public class McpServerManager {
                 SelectDeviceTool.selectPreviousDeviceSpecification(bitwigApiFacade, structuredLogger),
                 SelectDeviceTool.selectFirstDeviceSpecification(bitwigApiFacade, structuredLogger),
                 SelectTrackTool.specification(bitwigApiFacade, structuredLogger),
-                TrackControlTool.specification(bitwigApiFacade, structuredLogger),
                 BypassDeviceTool.specification(bitwigApiFacade, structuredLogger)
             )
             .build();
