@@ -43,14 +43,14 @@ jobs:
           cd mcpb/server
           npm install
           cd ../..
-          npx -y @anthropic-ai/mcpb pack mcpb WigAI.mcpb
+          npx -y @anthropic-ai/mcpb pack mcpb WigAI2.mcpb
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
             build/extensions/WigAI.bwextension
-            WigAI.mcpb
+            WigAI2.mcpb
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
           draft: false
