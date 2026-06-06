@@ -233,7 +233,7 @@ class GetDeviceDetailsToolTest {
 
         DeviceController.DeviceDetailsResult mockResult = new DeviceController.DeviceDetailsResult(
             0, "Drums", 1, "Compressor", "AudioFX", false, true,
-            remoteControls
+            remoteControls, 0, "Page 1", List.of("Page 1", "Page 2")
         );
 
         when(deviceController.getDeviceDetails(any(), any(), any(), any(), any())).thenReturn(mockResult);

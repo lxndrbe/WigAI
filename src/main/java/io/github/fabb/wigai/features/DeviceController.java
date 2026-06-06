@@ -192,6 +192,44 @@ public class DeviceController {
     }
 
     /**
+     * Selects a remote control page on the selected device by index.
+     *
+     * @param pageIndex 0-based index of the page to select
+     * @throws BitwigApiException if pageIndex is out of range or no device is selected
+     */
+    public void selectDevicePage(int pageIndex) throws BitwigApiException {
+        logger.info("DeviceController: Selecting page index " + pageIndex);
+        try {
+            bitwigApiFacade.selectDevicePage(pageIndex);
+        } catch (BitwigApiException e) {
+            logger.error("DeviceController: Error selecting page index " + pageIndex + ": " + e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            logger.error("DeviceController: Unexpected error selecting page index " + pageIndex + ": " + e.getMessage());
+            throw new BitwigApiException(ErrorCode.INTERNAL_ERROR, "selectDevicePage", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Selects a remote control page on the selected device by name.
+     *
+     * @param pageName Name of the page to select
+     * @throws BitwigApiException if page is not found or no device is selected
+     */
+    public void selectDevicePageByName(String pageName) throws BitwigApiException {
+        logger.info("DeviceController: Selecting page by name '" + pageName + "'");
+        try {
+            bitwigApiFacade.selectDevicePageByName(pageName);
+        } catch (BitwigApiException e) {
+            logger.error("DeviceController: Error selecting page by name '" + pageName + "': " + e.getMessage());
+            throw e;
+        } catch (Exception e) {
+            logger.error("DeviceController: Unexpected error selecting page by name '" + pageName + "': " + e.getMessage());
+            throw new BitwigApiException(ErrorCode.INTERNAL_ERROR, "selectDevicePageByName", e.getMessage(), e);
+        }
+    }
+
+    /**
      * Result record for device parameter queries.
      */
     public record DeviceParametersResult(
@@ -211,10 +249,14 @@ public class DeviceController {
         private final boolean isBypassed;
         private final boolean isSelected;
         private final List<ParameterInfo> remoteControls;
+        private final int selectedPageIndex;
+        private final String selectedPageName;
+        private final List<String> availablePages;
 
         public DeviceDetailsResult(int trackIndex, String trackName, int index, String name, String type,
                                  boolean isBypassed, boolean isSelected,
-                                 List<ParameterInfo> remoteControls) {
+                                 List<ParameterInfo> remoteControls,
+                                 int selectedPageIndex, String selectedPageName, List<String> availablePages) {
             this.trackIndex = trackIndex;
             this.trackName = trackName;
             this.index = index;
@@ -223,6 +265,9 @@ public class DeviceController {
             this.isBypassed = isBypassed;
             this.isSelected = isSelected;
             this.remoteControls = remoteControls;
+            this.selectedPageIndex = selectedPageIndex;
+            this.selectedPageName = selectedPageName;
+            this.availablePages = availablePages;
         }
 
         public Map<String, Object> toMap() {
@@ -234,6 +279,9 @@ public class DeviceController {
             result.put("type", type);
             result.put("is_bypassed", isBypassed);
             result.put("is_selected", isSelected);
+            result.put("selected_page_index", selectedPageIndex);
+            result.put("selected_page_name", selectedPageName);
+            result.put("available_pages", availablePages);
 
             List<Map<String, Object>> controlsArray = new ArrayList<>();
             for (ParameterInfo control : remoteControls) {

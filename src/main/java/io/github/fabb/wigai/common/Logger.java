@@ -1,13 +1,18 @@
 package io.github.fabb.wigai.common;
 
 import com.bitwig.extension.controller.api.ControllerHost;
+import java.io.FileWriter;
+import java.io.File;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 /**
- * Simple logger implementation for the WigAI extension.
- * Uses Bitwig's ControllerHost.println for logging.
+ * Logger implementation for the WigAI extension.
+ * Uses Bitwig's ControllerHost.println and writes to a debug log file on disk.
  */
 public class Logger {
     private final ControllerHost host;
+    private static final String LOG_FILE_PATH = "C:\\Users\\lxndr\\Documents\\CLAUDE\\Bitwig-Claude\\WigAI2\\wigai_debug.log";
 
     /**
      * Creates a new Logger instance.
@@ -19,6 +24,21 @@ public class Logger {
             throw new IllegalArgumentException("ControllerHost cannot be null");
         }
         this.host = host;
+        logToFile("INFO", "Logger initialized");
+    }
+
+    private void logToFile(String level, String message) {
+        String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS").format(new Date());
+        String line = "[" + timestamp + "] [" + level + "] " + message + "\n";
+        try {
+            File file = new File(LOG_FILE_PATH);
+            try (FileWriter fw = new FileWriter(file, true)) {
+                fw.write(line);
+            }
+        } catch (Exception e) {
+            // Fallback if writing fails
+            host.println("[ERROR] Failed to write to log file: " + e.getMessage());
+        }
     }
 
     /**
@@ -28,6 +48,7 @@ public class Logger {
      */
     public void info(String message) {
         host.println("[INFO] " + message);
+        logToFile("INFO", message);
     }
 
     /**
@@ -37,6 +58,7 @@ public class Logger {
      */
     public void warn(String message) {
         host.println("[WARN] " + message);
+        logToFile("WARN", message);
     }
 
     /**
@@ -46,6 +68,7 @@ public class Logger {
      */
     public void error(String message) {
         host.println("[ERROR] " + message);
+        logToFile("ERROR", message);
     }
 
     /**
@@ -55,6 +78,7 @@ public class Logger {
      */
     public void debug(String message) {
         host.println("[DEBUG] " + message);
+        logToFile("DEBUG", message);
     }
 
     /**
@@ -65,9 +89,13 @@ public class Logger {
      */
     public void error(String message, Throwable e) {
         host.println("[ERROR] " + message + ": " + e.getClass().getSimpleName() + ": " + e.getMessage());
-        // Print stack trace in a Bitwig-console friendly format
+        logToFile("ERROR", message + ": " + e.getClass().getSimpleName() + ": " + e.getMessage());
+        
+        StringBuilder sb = new StringBuilder();
         for (StackTraceElement element : e.getStackTrace()) {
             host.println("    at " + element.toString());
+            sb.append("    at ").append(element.toString()).append("\n");
         }
+        logToFile("STACKTRACE", sb.toString());
     }
 }

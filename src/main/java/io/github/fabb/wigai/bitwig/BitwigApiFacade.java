@@ -46,12 +46,18 @@ public class BitwigApiFacade {
     private final Application application;
     private final Logger logger;
     private final CursorDevice cursorDevice;
-    private final RemoteControlsPage deviceParameterBank;
+    private final CursorRemoteControlsPage deviceParameterBank;
     private final TrackBank trackBank;
     private final SceneBankFacade sceneBankFacade;
     private final CursorTrack cursorTrack;
     private final RemoteControlsPage projectParameterBank;
     private final List<DeviceBank> trackDeviceBanks;
+    private final List<Track> parentTracks;
+
+    private int selectedDevicePageIndex = -1;
+    private String selectedDevicePageName = "";
+    private String[] devicePageNames = new String[0];
+    private int devicePageCount = 0;
 
     /**
      * Creates a new BitwigApiFacade instance.
@@ -81,7 +87,8 @@ public class BitwigApiFacade {
         application.hasActiveEngine().markInterested();
 
         // Initialize device control - use CursorTrack.createCursorDevice() instead of deprecated host.createCursorDevice()
-        this.cursorTrack = host.createCursorTrack(0, 0);
+        // WIGAI_CURSOR_TRACK will follow selection in the GUI
+        this.cursorTrack = host.createCursorTrack("WIGAI_CURSOR_TRACK", "WigAI Cursor Track", 0, 0, true);
         this.cursorDevice = cursorTrack.createCursorDevice();
         this.deviceParameterBank = cursorDevice.createCursorRemoteControlsPage(Constants.DEVICE_PARAMETER_COUNT);
 
@@ -102,6 +109,18 @@ public class BitwigApiFacade {
             trackDeviceBanks.add(deviceBank);
         }
 
+        // Initialize parent tracks for each track and mark interested to enable hierarchy observers
+        this.parentTracks = new ArrayList<>();
+        for (int i = 0; i < trackBank.getSizeOfBank(); i++) {
+            Track track = trackBank.getItemAt(i);
+            Track parentTrack = track.createParentTrack(0, 0);
+            if (parentTrack != null) {
+                parentTrack.exists().markInterested();
+                parentTrack.name().markInterested();
+            }
+            parentTracks.add(parentTrack);
+        }
+
         // Mark interest in device properties to enable value access
         cursorDevice.exists().markInterested();
         cursorDevice.name().markInterested();
@@ -116,6 +135,25 @@ public class BitwigApiFacade {
             parameter.value().markInterested();
             parameter.displayedValue().markInterested();
         }
+
+        // Initialize observers to track pages on the selected device
+        this.deviceParameterBank.selectedPageIndex().markInterested();
+        this.deviceParameterBank.getName().markInterested();
+        this.deviceParameterBank.pageNames().markInterested();
+        this.deviceParameterBank.pageCount().markInterested();
+
+        this.deviceParameterBank.selectedPageIndex().addValueObserver(index -> {
+            this.selectedDevicePageIndex = index;
+        });
+        this.deviceParameterBank.getName().addValueObserver(name -> {
+            this.selectedDevicePageName = name;
+        });
+        this.deviceParameterBank.pageNames().addValueObserver(names -> {
+            this.devicePageNames = names;
+        });
+        this.deviceParameterBank.pageCount().addValueObserver(count -> {
+            this.devicePageCount = count;
+        });
 
         // Mark interest in project parameters to enable value access
         for (int i = 0; i < projectParameterBank.getParameterCount(); i++) {
@@ -969,8 +1007,9 @@ public class BitwigApiFacade {
                 selectedTrackName = cursorTrack.name().get();
             }
 
-            // Create parent track mapping to determine parent group indices
+            // Create parent track mapping to determine parent group indices and names
             Map<String, Integer> parentGroupMapping = buildParentGroupMapping();
+            Map<String, String> parentGroupNameMapping = buildParentGroupNameMapping();
 
             for (int i = 0; i < trackBank.getSizeOfBank(); i++) {
                 Track track = trackBank.getItemAt(i);
@@ -995,8 +1034,9 @@ public class BitwigApiFacade {
 
                 trackInfo.put("is_group", track.isGroup().get());
 
-                // Get parent group index from mapping
+                // Get parent group details from mapping
                 trackInfo.put("parent_group_index", parentGroupMapping.get(trackName));
+                trackInfo.put("parent_group_name", parentGroupNameMapping.get(trackName));
 
                 // Get track activation status
                 trackInfo.put("activated", track.isActivated().get());
@@ -1099,8 +1139,8 @@ public class BitwigApiFacade {
                 Integer parentGroupIndex = null;
 
                 try {
-                    // Create parent track object to check for parent group
-                    Track parentTrack = track.createParentTrack(0, 0);
+                    // Use cached parent track object to check for parent group
+                    Track parentTrack = parentTracks.get(i);
                     if (parentTrack != null && parentTrack.exists().get()) {
                         String parentName = parentTrack.name().get();
 
@@ -1123,6 +1163,43 @@ public class BitwigApiFacade {
             }
         } catch (Exception e) {
             logger.warn("BitwigApiFacade: Error building parent group mapping: " + e.getMessage());
+        }
+
+        return parentMapping;
+    }
+
+    /**
+     * Builds a mapping of track names to their parent group track names.
+     *
+     * @return A map where keys are track names and values are parent group names (null if no parent)
+     */
+    private Map<String, String> buildParentGroupNameMapping() {
+        Map<String, String> parentMapping = new LinkedHashMap<>();
+
+        try {
+            for (int i = 0; i < trackBank.getSizeOfBank(); i++) {
+                Track track = trackBank.getItemAt(i);
+                if (!track.exists().get()) {
+                    continue;
+                }
+
+                String trackName = track.name().get();
+                String parentGroupName = null;
+
+                try {
+                    // Use cached parent track object to check for parent group
+                    Track parentTrack = parentTracks.get(i);
+                    if (parentTrack != null && parentTrack.exists().get()) {
+                        parentGroupName = parentTrack.name().get();
+                    }
+                } catch (Exception e) {
+                    logger.warn("BitwigApiFacade: Error determining parent name for track " + trackName + ": " + e.getMessage());
+                }
+
+                parentMapping.put(trackName, parentGroupName);
+            }
+        } catch (Exception e) {
+            logger.warn("BitwigApiFacade: Error building parent group name mapping: " + e.getMessage());
         }
 
         return parentMapping;
@@ -1235,7 +1312,9 @@ public class BitwigApiFacade {
             trackInfo.put("type", trackType);
             trackInfo.put("is_group", track.isGroup().get());
             Map<String, Integer> parentMap = buildParentGroupMapping();
+            Map<String, String> parentNameMap = buildParentGroupNameMapping();
             trackInfo.put("parent_group_index", parentMap.get(trackName));
+            trackInfo.put("parent_group_name", parentNameMap.get(trackName));
             trackInfo.put("activated", track.isActivated().get());
             trackInfo.put("color", formatTrackColor(track.color().get()));
             // Selected state
@@ -1617,7 +1696,10 @@ public class BitwigApiFacade {
             mappedType,
             isBypassed,
             true, // is_selected = true since this is the selected device
-            remoteControls
+            remoteControls,
+            selectedDevicePageIndex,
+            selectedDevicePageName,
+            java.util.Arrays.asList(devicePageNames)
         );
     }
 
@@ -1714,7 +1796,10 @@ public class BitwigApiFacade {
             mappedType,
             isBypassed,
             isSelected,
-            remoteControls
+            remoteControls,
+            isSelected ? selectedDevicePageIndex : -1,
+            isSelected ? selectedDevicePageName : "",
+            isSelected ? java.util.Arrays.asList(devicePageNames) : new ArrayList<>()
         );
     }
 
@@ -1836,14 +1921,52 @@ public class BitwigApiFacade {
     }
 
     /**
-     * Creates a new track of the specified type (audio, instrument, effect).
+     * Creates a new track of the specified type, optionally inside a parent group track.
      *
-     * @param type The type of track to create ("audio", "instrument", "effect")
-     * @throws BitwigApiException if type is invalid or action cannot be triggered
+     * @param type              The type of track to create ("audio", "instrument", "effect", "group")
+     * @param parentGroupIndex  Optional 0-based index of the parent group track
+     * @param parentGroupName   Optional name of the parent group track
+     * @throws BitwigApiException if type is invalid, parent not found, or action cannot be triggered
      */
-    public void createTrack(String type) throws BitwigApiException {
+    public void createTrack(String type, Integer parentGroupIndex, String parentGroupName) throws BitwigApiException {
         final String operation = "createTrack";
-        logger.info("BitwigApiFacade: Creating track of type: " + type);
+        logger.info("BitwigApiFacade: Creating track of type: " + type +
+            (parentGroupIndex != null ? " inside parent group index " + parentGroupIndex : "") +
+            (parentGroupName != null ? " inside parent group '" + parentGroupName + "'" : ""));
+
+        // If parent group is specified, find and select it first
+        if (parentGroupIndex != null || parentGroupName != null) {
+            Track parentTrack = null;
+            if (parentGroupIndex != null) {
+                if (parentGroupIndex < 0 || parentGroupIndex >= trackBank.getSizeOfBank()) {
+                    throw new BitwigApiException(ErrorCode.INVALID_RANGE, operation,
+                        "Parent group track index " + parentGroupIndex + " is out of range (0-" + (trackBank.getSizeOfBank() - 1) + ")");
+                }
+                Optional<Track> parentOpt = findTrackByIndex(parentGroupIndex);
+                if (parentOpt.isEmpty()) {
+                    throw new BitwigApiException(ErrorCode.TRACK_NOT_FOUND, operation,
+                        "Parent group track at index " + parentGroupIndex + " does not exist");
+                }
+                parentTrack = parentOpt.get();
+            } else {
+                Optional<Track> parentOpt = findTrackByName(parentGroupName);
+                if (parentOpt.isEmpty()) {
+                    throw new BitwigApiException(ErrorCode.TRACK_NOT_FOUND, operation,
+                        "Parent group track with name '" + parentGroupName + "' does not exist");
+                }
+                parentTrack = parentOpt.get();
+            }
+
+            // Verify the parent track is actually a group track
+            if (!parentTrack.isGroup().get()) {
+                throw new BitwigApiException(ErrorCode.INVALID_PARAMETER, operation,
+                    "Specified parent track '" + parentTrack.name().get() + "' is not a group track");
+            }
+
+            // Select the parent group track first so the new track is created inside it
+            cursorTrack.selectChannel(parentTrack);
+            logger.info("BitwigApiFacade: Selected parent group track '" + parentTrack.name().get() + "' before track creation");
+        }
 
         String actionName;
         switch (type.toLowerCase()) {
@@ -1893,10 +2016,22 @@ public class BitwigApiFacade {
 
             action.invoke();
             logger.info("BitwigApiFacade: Triggered action: " + actionName);
+        } catch (BitwigApiException e) {
+            throw e;
         } catch (Exception e) {
             throw new BitwigApiException(ErrorCode.BITWIG_API_ERROR, operation,
                     "Failed to create track: " + e.getMessage());
         }
+    }
+
+    /**
+     * Creates a new track of the specified type (audio, instrument, effect).
+     *
+     * @param type The type of track to create ("audio", "instrument", "effect")
+     * @throws BitwigApiException if type is invalid or action cannot be triggered
+     */
+    public void createTrack(String type) throws BitwigApiException {
+        createTrack(type, null, null);
     }
 
     /**
@@ -2006,6 +2141,75 @@ public class BitwigApiFacade {
             throw new BitwigApiException(ErrorCode.BITWIG_API_ERROR, operation,
                     "Failed to select track: " + e.getMessage());
         }
+    }
+
+    /**
+     * Selects/focuses the track with the given name.
+     *
+     * @param trackName Name of the track to select
+     * @throws BitwigApiException if track doesn't exist
+     */
+    public void selectTrackByName(String trackName) throws BitwigApiException {
+        final String operation = "selectTrackByName";
+        logger.info("BitwigApiFacade: Selecting track by name: " + trackName);
+        int trackIndex = findTrackIndexByName(trackName);
+        selectTrack(trackIndex);
+    }
+
+    /**
+     * Selects a remote control page on the selected device by index.
+     *
+     * @param pageIndex 0-based index of the page to select
+     * @throws BitwigApiException if pageIndex is out of range or no device is selected
+     */
+    public void selectDevicePage(int pageIndex) throws BitwigApiException {
+        final String operation = "selectDevicePage";
+        if (!cursorDevice.exists().get()) {
+            throw new BitwigApiException(ErrorCode.DEVICE_NOT_SELECTED, operation,
+                "No device is currently selected");
+        }
+        if (pageIndex < 0 || pageIndex >= devicePageCount) {
+            throw new BitwigApiException(ErrorCode.INVALID_RANGE, operation,
+                "Page index " + pageIndex + " is out of range [0, " + (devicePageCount - 1) + "]");
+        }
+        try {
+            deviceParameterBank.selectedPageIndex().set(pageIndex);
+            logger.info("BitwigApiFacade: Selected device page index " + pageIndex);
+        } catch (Exception e) {
+            throw new BitwigApiException(ErrorCode.BITWIG_API_ERROR, operation,
+                "Failed to select device page: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Selects a remote control page on the selected device by name.
+     *
+     * @param pageName Name of the page to select
+     * @throws BitwigApiException if page is not found or no device is selected
+     */
+    public void selectDevicePageByName(String pageName) throws BitwigApiException {
+        final String operation = "selectDevicePageByName";
+        if (!cursorDevice.exists().get()) {
+            throw new BitwigApiException(ErrorCode.DEVICE_NOT_SELECTED, operation,
+                "No device is currently selected");
+        }
+        ParameterValidator.validateNotEmpty(pageName, "pageName", operation);
+
+        int resolvedIndex = -1;
+        for (int i = 0; i < devicePageNames.length; i++) {
+            if (pageName.equalsIgnoreCase(devicePageNames[i])) {
+                resolvedIndex = i;
+                break;
+            }
+        }
+
+        if (resolvedIndex == -1) {
+            throw new BitwigApiException(ErrorCode.INVALID_PARAMETER, operation,
+                "Page '" + pageName + "' not found on selected device. Available pages: " + 
+                String.join(", ", devicePageNames));
+        }
+
+        selectDevicePage(resolvedIndex);
     }
 
     /**

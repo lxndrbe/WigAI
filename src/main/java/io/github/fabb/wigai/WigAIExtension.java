@@ -45,6 +45,9 @@ public class WigAIExtension extends ControllerExtension implements ConfigChangeO
         // Initialize the logger
         logger = new Logger(host);
 
+        // Initialize MCP error handler with host to enable main thread execution
+        io.github.fabb.wigai.mcp.McpErrorHandler.setControllerHost(host);
+
         // Initialize the config manager with Bitwig preferences integration
         configManager = new PreferencesBackedConfigManager(logger, host);
 

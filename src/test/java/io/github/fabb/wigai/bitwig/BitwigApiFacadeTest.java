@@ -89,7 +89,7 @@ public class BitwigApiFacadeTest {
         // Setup basic mocks
         when(mockHost.createTransport()).thenReturn(mockTransport);
         when(mockHost.createApplication()).thenReturn(mockApplication);
-        when(mockHost.createCursorTrack(0, 0)).thenReturn(mockCursorTrack);
+        when(mockHost.createCursorTrack("WIGAI_CURSOR_TRACK", "WigAI Cursor Track", 0, 0, true)).thenReturn(mockCursorTrack);
         when(mockCursorTrack.createCursorDevice()).thenReturn(mockCursorDevice);
         when(mockCursorDevice.createCursorRemoteControlsPage(8)).thenReturn(mockParameterBank);
 
@@ -129,6 +129,12 @@ public class BitwigApiFacadeTest {
         lenient().when(mockRemoteControl.value()).thenReturn(mock(com.bitwig.extension.controller.api.SettableRangedValue.class));
         lenient().when(mockRemoteControl.displayedValue()).thenReturn(mock(com.bitwig.extension.controller.api.SettableStringValue.class));
 
+        // Setup parameter bank page mocks
+        lenient().when(mockParameterBank.selectedPageIndex()).thenReturn(mock(com.bitwig.extension.controller.api.SettableIntegerValue.class));
+        lenient().when(mockParameterBank.getName()).thenReturn(mock(com.bitwig.extension.controller.api.StringValue.class));
+        lenient().when(mockParameterBank.pageNames()).thenReturn(mock(com.bitwig.extension.controller.api.StringArrayValue.class));
+        lenient().when(mockParameterBank.pageCount()).thenReturn(mock(com.bitwig.extension.controller.api.IntegerValue.class));
+
         // Setup project parameter mocks
         lenient().when(mockProjectRemoteControl.exists()).thenReturn(mock(com.bitwig.extension.controller.api.BooleanValue.class));
         lenient().when(mockProjectRemoteControl.name()).thenReturn(mock(com.bitwig.extension.controller.api.SettableStringValue.class));
@@ -142,6 +148,11 @@ public class BitwigApiFacadeTest {
         lenient().when(mockTrack.isGroup()).thenReturn(mock(com.bitwig.extension.controller.api.BooleanValue.class));
         lenient().when(mockTrack.isActivated()).thenReturn(mock(com.bitwig.extension.controller.api.SettableBooleanValue.class));
         lenient().when(mockTrack.color()).thenReturn(mock(com.bitwig.extension.controller.api.SettableColorValue.class));
+
+        Track mockParentTrack = mock(Track.class);
+        lenient().when(mockParentTrack.exists()).thenReturn(mock(com.bitwig.extension.controller.api.BooleanValue.class));
+        lenient().when(mockParentTrack.name()).thenReturn(mock(com.bitwig.extension.controller.api.SettableStringValue.class));
+        lenient().when(mockTrack.createParentTrack(0, 0)).thenReturn(mockParentTrack);
 
         // Setup device bank mocks for tracks - use smaller sizes for testing
         lenient().when(mockTrack.createDeviceBank(128)).thenReturn(mockDeviceBank);

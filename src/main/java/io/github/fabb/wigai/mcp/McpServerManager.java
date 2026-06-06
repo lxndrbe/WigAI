@@ -36,6 +36,7 @@ import io.github.fabb.wigai.mcp.tool.SelectDeviceTool;
 import io.github.fabb.wigai.mcp.tool.SelectTrackTool;
 import io.github.fabb.wigai.mcp.tool.TrackControlTool;
 import io.github.fabb.wigai.mcp.tool.BypassDeviceTool;
+import io.github.fabb.wigai.mcp.tool.SelectDevicePageTool;
 
 /**
  * Manages the MCP server for the WigAI extension.
@@ -161,6 +162,7 @@ public class McpServerManager {
                 DeviceParamTool.setSelectedDeviceParameterSpecification(deviceController, structuredLogger),
                 DeviceParamTool.setMultipleDeviceParametersSpecification(deviceController, structuredLogger),
                 GetDeviceDetailsTool.getDeviceDetailsSpecification(deviceController, structuredLogger),
+                SelectDevicePageTool.specification(deviceController, structuredLogger),
                 ListTracksTool.specification(bitwigApiFacade, structuredLogger),
                 ListDevicesOnTrackTool.specification(bitwigApiFacade, structuredLogger),
                 GetTrackDetailsTool.specification(bitwigApiFacade, structuredLogger),

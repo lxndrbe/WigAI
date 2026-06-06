@@ -1,5 +1,6 @@
 package io.github.fabb.wigai.mcp;
 
+import com.bitwig.extension.controller.api.ControllerHost;
 import io.github.fabb.wigai.common.error.BitwigApiException;
 import io.github.fabb.wigai.common.error.ErrorCode;
 import io.github.fabb.wigai.common.error.WigAIErrorHandler;
@@ -14,6 +15,48 @@ import java.util.Map;
  * Ensures all MCP tools return standardized JSON response format with proper error handling.
  */
 public class McpErrorHandler {
+
+    private static volatile ControllerHost controllerHost;
+
+    /**
+     * Sets the controller host to enable main thread execution scheduling.
+     *
+     * @param host The ControllerHost instance
+     */
+    public static void setControllerHost(ControllerHost host) {
+        controllerHost = host;
+    }
+
+    /**
+     * Helper to execute a Callable on the main thread and block/wait for the result.
+     */
+    private static <R> R callOnMainThread(java.util.concurrent.Callable<R> callable) throws Exception {
+        if (controllerHost == null) {
+            return callable.call();
+        }
+        java.util.concurrent.CompletableFuture<R> future = new java.util.concurrent.CompletableFuture<>();
+        controllerHost.scheduleTask(() -> {
+            try {
+                future.complete(callable.call());
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        }, 0);
+        try {
+            return future.get(5, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (java.util.concurrent.ExecutionException e) {
+            if (e.getCause() instanceof Exception) {
+                throw (Exception) e.getCause();
+            }
+            throw new RuntimeException(e.getCause());
+        } catch (java.util.concurrent.TimeoutException e) {
+            throw new BitwigApiException(
+                ErrorCode.BITWIG_TIMEOUT,
+                "mainThreadExecution",
+                "Bitwig main thread failed to respond within 5 seconds"
+            );
+        }
+    }
 
     /**
      * Creates a standardized MCP success response.
@@ -103,7 +146,7 @@ public class McpErrorHandler {
         StructuredLogger.TimedOperation timedOperation = logger.startTimedOperation(operationId, operation, null);
 
         try {
-            Object result = task.execute();
+            Object result = callOnMainThread(() -> task.execute());
             timedOperation.success(result);
             return createSuccessResponse(result);
         } catch (BitwigApiException e) {
@@ -140,8 +183,8 @@ public class McpErrorHandler {
             // Validate parameters
             T validatedParams = validator.validate(arguments, operation);
 
-            // Execute operation with validated parameters
-            Object result = task.execute(validatedParams);
+            // Execute operation with validated parameters on the main thread
+            Object result = callOnMainThread(() -> task.execute(validatedParams));
 
             timedOperation.success(result);
             return createSuccessResponse(result);
