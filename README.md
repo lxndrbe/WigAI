@@ -59,7 +59,7 @@ WigAI ships a `.mcpb` [Desktop Extension](https://github.com/anthropics/mcpb) bu
 > **Prerequisite:** Bitwig Studio must be open and the WigAI extension activated (orange checkmark in Controller Settings) *before* installing the extension or starting Claude Desktop. Otherwise, the proxy will fail to establish the connection and Claude will show a "Server disconnected" error.
 
 1. Make sure Bitwig Studio is running with the WigAI extension activated.
-2. Download `WigAI.mcpb` from this repository or the releases.
+2. Download `WigAI2.mcpb` from this repository or the releases.
 3. Open **Claude Desktop** and click the gear icon in the bottom-left corner to open **Settings** (Einstellungen).
 4. Navigate to the **Extensions** (Erweiterungen) tab.
 5. Click on **Extension Settings** (Erweiterungseinstellungen / Entwicklereinstellungen).
@@ -72,7 +72,7 @@ The bundle packages a small stdio↔HTTP proxy ([`mcp-remote`](https://www.npmjs
 
 ```bash
 cd mcpb/server && npm install && cd ../..
-npx -y @anthropic-ai/mcpb pack mcpb WigAI.mcpb
+npx -y @anthropic-ai/mcpb pack mcpb WigAI2.mcpb
 ```
 
 ### Option B — Manual MCP configuration (Claude Code / other clients)
@@ -106,13 +106,14 @@ Other clients can point at `http://localhost:61169/mcp` directly using an HTTP/S
 | `get_clips_in_scene` | Clip slots in a scene |
 | `list_bitwig_devices` | Known Bitwig devices with UUIDs |
 | `insert_bitwig_device` | Insert a device (native, VST3, CLAP, or VST2) into a track by ID/UUID |
-| `create_track` | Create a new track (audio, instrument, or effect) |
+| `create_track` | Create a new track (audio, instrument, effect, or group), optionally inside a parent group |
 | `rename_track` | Rename a track by its index |
 | `delete_selected_device` | Delete the currently selected device |
 | `select_next_device` / `select_previous_device` / `select_first_device` | Navigate device selection in the track chain |
-| `select_track` | Select/focus a track by index |
+| `select_track` | Select/focus a track by index or name |
 | `set_track_parameter` | Set track volume, pan, mute, solo, or arm |
 | `set_device_bypass` | Bypass or activate a device by track and device index |
+| `select_device_page` | Select/switch a remote control parameter page on the currently selected device |
 
 ## Compatible AI Agents
 
@@ -120,7 +121,7 @@ WigAI works with any AI agent that supports the Model Context Protocol — not j
 
 | Agent | How to connect |
 |-------|---------------|
-| **Claude Desktop** | Install `WigAI.mcpb` (one-click, see above) |
+| **Claude Desktop** | Install `WigAI2.mcpb` (one-click, see above) |
 | **Claude Code** | `claude mcp add --transport http WigAI http://localhost:61169/mcp` |
 | **Cursor** | Add to `.cursor/mcp.json`: `{ "mcpServers": { "WigAI": { "url": "http://localhost:61169/mcp" } } }` |
 | **VS Code Copilot** | Add to VS Code MCP settings with transport `http` and URL `http://localhost:61169/mcp` |
